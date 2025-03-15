@@ -6,7 +6,7 @@ const connectDB = async () => {
       useNewUrlParser: true,
       useUnifiedTopology: true,
     });
-    console.log("✅ Conectado a MongoDB");
+    console.log(`✅ Conectado a MongoDB en: ${process.env.MONGO_URI}`);
   } catch (err) {
     console.error("❌ Error conectando a MongoDB:", err);
     setTimeout(connectDB, 5000); // Reintento después de 5 segundos

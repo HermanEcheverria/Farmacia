@@ -1,5 +1,7 @@
 import { createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
+import API_URL from "../utils/api";
+
 
 export default function Login() {
   const [email, setEmail] = createSignal("");
@@ -9,7 +11,7 @@ export default function Login() {
 
   const handleLogin = async () => {
     setError(""); // Limpiar errores previos
-    const response = await fetch("http://localhost:5000/auth/login", {
+    const response = await fetch(`${API_URL}/auth/login` , {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email: email(), password: password() }),
