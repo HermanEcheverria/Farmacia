@@ -11,73 +11,88 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// 🔹 Ruta de registro (signup)
-router.post("/signup", async (req, res) => {
+// Middleware para verificar si el usuario es administrador
+const verifyAdmin = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+  if (!token) return res.status(401).json({ error: "Acceso no autorizado" });
+
   try {
-    console.log("🟢 Recibida solicitud de registro con datos:", req.body);
+    const decoded = jwt.verify(token, JWT_SECRET);
+    if (decoded.role !== "admin") {
+      return res.status(403).json({ error: "Acceso denegado" });
+    }
+    req.user = decoded;
+    next();
+  } catch (error) {
+    return res.status(401).json({ error: "Token inválido" });
+  }
+};
+
+// 🔹 Obtener todos los usuarios (solo admins)
+router.get("/users", verifyAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo usuarios" });
+  }
+});
+
+// 🔹 Activar cuenta y asignar rol (solo admins)
+router.put("/users/:id", verifyAdmin, async (req, res) => {
+  try {
+    const { active, role } = req.body;
+    const user = await User.findByIdAndUpdate(
+      req.params.id,
+      { active, role },
+      { new: true }
+    );
+
+    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    res.json({ message: "Usuario actualizado", user });
+  } catch (error) {
+    res.status(500).json({ error: "Error actualizando usuario" });
+  }
+});
+
+// 🔹 Ruta de inicio de sesión (login)
+router.post("/login", async (req, res) => {
+  try {
+    console.log("🟢 Recibida solicitud de login con datos:", req.body);
     const { email, password } = req.body;
 
     if (!email || !password) {
       return res.status(400).json({ error: "Email y password son obligatorios" });
     }
 
-    const existingUser = await User.findOne({ email });
-    if (existingUser) {
-      return res.status(400).json({ error: "El usuario ya existe" });
-    }
-
-    console.log("🔑 Hasheando contraseña...");
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    console.log("📝 Guardando usuario en la base de datos...");
-    const user = new User({
-      email,
-      password: hashedPassword,
-      role: "sin-registrar",
-      active: false
-    });
-
-    await user.save();
-    console.log("✅ Usuario guardado en MongoDB:", user);
-
-    // ✅ Responder al frontend para que envíe el email
-    res.status(201).json({
-      message: "Usuario creado exitosamente. Verifica tu correo para la activación.",
-      email: user.email,
-      status: "pending"
-    });
-
-  } catch (error) {
-    console.error("❌ Error en /signup:", error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
-// 🔹 Ruta para activar la cuenta
-router.post("/activate/:email", async (req, res) => {
-  try {
-    const { email } = req.params;
     const user = await User.findOne({ email });
-
     if (!user) {
-      return res.status(404).json({ error: "Usuario no encontrado" });
+      return res.status(400).json({ error: "Usuario no encontrado" });
     }
 
-    if (user.active) {
-      return res.status(400).json({ error: "La cuenta ya está activada" });
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(400).json({ error: "Contraseña incorrecta" });
     }
 
-    user.active = true;
-    await user.save();
-    console.log("✅ Cuenta activada para:", user.email);
+    if (!user.active) {
+      return res.status(403).json({ error: "La cuenta no está activada. Contacta a un administrador." });
+    }
 
-    // ✅ Responder al frontend para que envíe el email de cuenta activada
-    res.json({ message: "Cuenta activada exitosamente", status: "activated", email });
+    // ✅ Generar token JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "1h" }
+    );
 
+    res.json({ message: "Inicio de sesión exitoso", token, role: user.role });
   } catch (error) {
-    console.error("❌ Error en /activate:", error);
-    res.status(500).json({ error: error.message });
+    console.error("❌ Error en /login:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
   }
 });
+
 
 module.exports = router;

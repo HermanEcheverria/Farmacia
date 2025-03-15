@@ -1,6 +1,9 @@
 import { A } from "@solidjs/router";
+import { getUser } from "../utils/auth";
 
 export default function Home() {
+  const user = getUser(); // Obtiene el usuario actual
+
   return (
     <section class="bg-gray-100 min-h-screen flex flex-col items-center">
       {/* Hero Section */}
@@ -10,17 +13,29 @@ export default function Home() {
           <p class="mt-4 text-lg">
             La mejor solución para la gestión de medicamentos, recetas e inventario.
           </p>
-          <A href="/signup" class="mt-6 inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
-            Crear Cuenta
-          </A>
+          {!user && (
+            <A href="/signup" class="mt-6 inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
+              Crear Cuenta
+            </A>
+          )}
         </div>
       </header>
 
       {/* Sección de Servicios */}
       <section class="container mx-auto py-12 px-4">
         <h2 class="text-3xl font-bold text-center text-gray-800">Nuestros Servicios</h2>
+
+        {user ? (
+          <div class="text-center text-green-700 text-lg font-semibold mt-6">
+            Bienvenido, <span class="text-blue-600">{user.email}</span>. Tu rol es <span class="text-red-600">{user.role}</span>.
+          </div>
+        ) : (
+          <div class="text-center text-gray-600 mt-6">
+            Inicia sesión para acceder a todas las funcionalidades.
+          </div>
+        )}
+
         <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
-          
           {/* Gestión de Recetas */}
           <div class="bg-white p-6 shadow-lg rounded-lg text-center">
             <i class="bi bi-file-earmark-medical text-blue-600 text-5xl"></i>
@@ -57,9 +72,15 @@ export default function Home() {
           <p class="mt-4 text-lg">
             Regístrate hoy y lleva tu farmacia al siguiente nivel con nuestra plataforma digital.
           </p>
-          <A href="/signup" class="mt-6 inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
-            Comenzar Ahora
-          </A>
+          {user ? (
+            <A href="/dashboard" class="mt-6 inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
+              Ir al Panel de Control
+            </A>
+          ) : (
+            <A href="/signup" class="mt-6 inline-block bg-white text-blue-600 px-6 py-2 rounded-lg font-semibold hover:bg-gray-200 transition">
+              Comenzar Ahora
+            </A>
+          )}
         </div>
       </section>
     </section>

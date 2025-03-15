@@ -12,11 +12,14 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: true
   },
-  // Definimos los roles permitidos
   role: {
     type: String,
     enum: ["admin", "empleado", "paciente", "interconexiones", "sin-registrar"],
-    default: "paciente"
+    default: "sin-registrar"
+  },
+  active: {
+    type: Boolean,
+    default: false
   },
   createdAt: {
     type: Date,
