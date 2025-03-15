@@ -36,9 +36,9 @@ export default function AdminUsers() {
       if (!response.ok) throw new Error("Error al actualizar usuario");
       const updatedUser = await response.json();
 
-      // ✅ Enviar email de activación si la cuenta fue activada
+      // ✅ Enviar email de activación con el rol si la cuenta fue activada
       if (active) {
-        await sendEmail(email, "activated");
+        await sendEmail(email, "activated", role);  // ✅ Ahora enviamos el rol
       }
 
       // ✅ Actualizar el estado de la lista de usuarios
