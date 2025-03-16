@@ -18,6 +18,7 @@ export default function AdminMedicamentos() {
   const [principioActivo, setPrincipioActivo] = createSignal("");
 
   const [selectedFile, setSelectedFile] = createSignal<File | null>(null);
+  const [isEditing, setIsEditing] = createSignal(false);
 
   // Cargar la lista de medicamentos
   createEffect(async () => {
@@ -37,8 +38,8 @@ export default function AdminMedicamentos() {
     }
   });
 
-  // Agregar un medicamento
-  const agregarMedicamento = async () => {
+  // Agregar o editar un medicamento
+  const guardarMedicamento = async () => {
     const token = localStorage.getItem("token");
     
     if (!token) {
@@ -63,74 +64,7 @@ export default function AdminMedicamentos() {
     console.log("🔍 Enviando datos al backend:", medicamentoData);
   
     try {
-      const response = await fetch(`${API_URL}/medicamentos/crear`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(medicamentoData),
-      });
-  
-      const responseData = await response.json();
-  
-      if (!response.ok) {
-        console.error("❌ Respuesta del backend:", responseData);
-        throw new Error(responseData.error || "Error al agregar medicamento");
-      }
-  
-      console.log("✅ Medicamento agregado con éxito:", responseData);
-      setMedicamentos([...medicamentos(), responseData]);
-  
-      // Limpiar el formulario
-      setCodigo("");
-      setNombre("");
-      setCategoria("");
-      setPrecio("");
-      setStock("");
-      setFarmaceutica("");
-      setUnidadesPorPresentacion("");
-      setPresentacion("");
-      setConcentracion("");
-      setPrincipioActivo("");
-    } catch (err) {
-      console.error("❌ Error agregando medicamento:", err);
-      setError("No se pudo agregar el medicamento.");
-    }
-  };
-
-  // Editar un medicamento
-  const editarMedicamento = async (codigo: string) => {
-    const token = localStorage.getItem("token");
-    
-    if (!token) {
-      console.error("❌ No hay token almacenado en localStorage");
-      setError("No hay token de autenticación. Inicia sesión nuevamente.");
-      return;
-    }
-
-    // Validar que los campos no estén vacíos o nulos
-    if (!nombre() || !categoria() || !precio() || !stock() || !farmaceutica() || !unidadesPorPresentacion() || !presentacion() || !concentracion() || !principioActivo()) {
-      setError("Todos los campos son obligatorios.");
-      return;
-    }
-  
-    const medicamentoData = {
-      nombre: nombre(),
-      categoria: categoria(),
-      precio: parseFloat(precio()),
-      stock: parseInt(stock()),
-      farmaceutica: farmaceutica(),
-      unidadesPorPresentacion: parseInt(unidadesPorPresentacion()),
-      presentacion: presentacion(),
-      concentracion: concentracion(),
-      principioActivo: principioActivo(),
-    };
-  
-    console.log("🔍 Enviando datos al backend para editar:", medicamentoData);
-  
-    try {
-      const response = await fetch(`${API_URL}/medicamentos/${codigo}`, {
+      const response = await fetch(`${API_URL}/medicamentos/${codigo()}`, { 
         method: "PUT",
         headers: {
           "Content-Type": "application/json",
@@ -138,16 +72,20 @@ export default function AdminMedicamentos() {
         },
         body: JSON.stringify(medicamentoData),
       });
-  
+        
       const responseData = await response.json();
   
       if (!response.ok) {
         console.error("❌ Respuesta del backend:", responseData);
-        throw new Error(responseData.error || "Error al editar medicamento");
+        throw new Error(responseData.error || `Error al ${isEditing() ? 'editar' : 'agregar'} medicamento`);
       }
   
-      console.log("✅ Medicamento editado con éxito:", responseData);
-      setMedicamentos(medicamentos().map(m => m.codigo === codigo ? responseData : m));
+      console.log(`✅ Medicamento ${isEditing() ? 'editado' : 'agregado'} con éxito:`, responseData);
+      if (isEditing()) {
+        setMedicamentos(medicamentos().map(m => m.codigo === codigo() ? responseData : m));
+      } else {
+        setMedicamentos([...medicamentos(), responseData]);
+      }
   
       // Limpiar el formulario
       setCodigo("");
@@ -160,10 +98,26 @@ export default function AdminMedicamentos() {
       setPresentacion("");
       setConcentracion("");
       setPrincipioActivo("");
+      setIsEditing(false);
     } catch (err) {
-      console.error("❌ Error editando medicamento:", err);
-      setError("No se pudo editar el medicamento.");
+      console.error(`❌ Error ${isEditing() ? 'editando' : 'agregando'} medicamento:`, err);
+      setError(`No se pudo ${isEditing() ? 'editar' : 'agregar'} el medicamento.`);
     }
+  };
+
+  // Función para cargar los datos del medicamento en el formulario
+  const cargarDatosMedicamento = (medicamento) => {
+    setCodigo(medicamento.codigo);
+    setNombre(medicamento.nombre);
+    setCategoria(medicamento.categoria);
+    setPrecio(medicamento.precio.toString());
+    setStock(medicamento.stock.toString());
+    setFarmaceutica(medicamento.farmaceutica);
+    setUnidadesPorPresentacion(medicamento.unidadesPorPresentacion.toString());
+    setPresentacion(medicamento.presentacion);
+    setConcentracion(medicamento.concentracion);
+    setPrincipioActivo(medicamento.principioActivo);
+    setIsEditing(true);
   };
 
   // Eliminar un medicamento
@@ -221,10 +175,10 @@ export default function AdminMedicamentos() {
       <h1 class="text-3xl font-bold mb-6 text-center">Gestión de Medicamentos</h1>
       {error() && <p class="text-red-600 mb-4">{error()}</p>}
 
-      {/* Formulario para agregar un medicamento */}
+      {/* Formulario para agregar o editar un medicamento */}
       <div class="bg-white p-6 shadow-lg rounded-lg mb-6 max-w-md mx-auto">
-        <h2 class="text-2xl font-semibold mb-4">Agregar Medicamento</h2>
-        <input type="text" placeholder="Código" class="border p-2 w-full mb-2" value={codigo()} onInput={(e) => setCodigo(e.currentTarget.value)} />
+        <h2 class="text-2xl font-semibold mb-4">{isEditing() ? "Editar Medicamento" : "Agregar Medicamento"}</h2>
+        <input type="text" placeholder="Código" class="border p-2 w-full mb-2" value={codigo()} onInput={(e) => setCodigo(e.currentTarget.value)} disabled={isEditing()} />
         <input type="text" placeholder="Nombre" class="border p-2 w-full mb-2" value={nombre()} onInput={(e) => setNombre(e.currentTarget.value)} />
         <input type="text" placeholder="Categoría" class="border p-2 w-full mb-2" value={categoria()} onInput={(e) => setCategoria(e.currentTarget.value)} />
         <input type="number" placeholder="Precio" class="border p-2 w-full mb-2" value={precio()} onInput={(e) => setPrecio(e.currentTarget.value)} />
@@ -234,7 +188,7 @@ export default function AdminMedicamentos() {
         <input type="text" placeholder="Presentación" class="border p-2 w-full mb-2" value={presentacion()} onInput={(e) => setPresentacion(e.currentTarget.value)} />
         <input type="text" placeholder="Concentración" class="border p-2 w-full mb-2" value={concentracion()} onInput={(e) => setConcentracion(e.currentTarget.value)} />
         <input type="text" placeholder="Principio Activo" class="border p-2 w-full mb-2" value={principioActivo()} onInput={(e) => setPrincipioActivo(e.currentTarget.value)} />
-        <button class="bg-blue-500 text-white px-4 py-2 rounded w-full mt-2" onClick={agregarMedicamento}>Agregar</button>
+        <button class="bg-blue-500 text-white px-4 py-2 rounded w-full mt-2" onClick={guardarMedicamento}>{isEditing() ? "Guardar Cambios" : "Agregar"}</button>
       </div>
 
       {/* Tabla de medicamentos */}
@@ -269,7 +223,7 @@ export default function AdminMedicamentos() {
                   </td>
                   <td class="border p-2">
                     <button class="bg-red-500 text-white px-2 py-1 rounded mr-2" onClick={() => eliminarMedicamento(medicamento.codigo)}>Eliminar</button>
-                    <button class="bg-green-500 text-white px-2 py-1 rounded mr-2" onClick={() => editarMedicamento(medicamento.codigo)}>Editar</button>
+                    <button class="bg-green-500 text-white px-2 py-1 rounded mr-2" onClick={() => cargarDatosMedicamento(medicamento)}>Editar</button>
                     <input type="file" class="mb-2" onChange={(e) => setSelectedFile(e.currentTarget.files?.[0] || null)} />
                     <button class="bg-blue-500 text-white px-2 py-1 rounded mt-2" onClick={() => handleFileUpload(medicamento.codigo)}>Subir Imagen</button>
                   </td>

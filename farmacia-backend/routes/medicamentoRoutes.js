@@ -117,3 +117,4 @@ router.post("/upload/:codigo", verifyToken, verifyAdmin, upload.single("imagen")
 });
 
 module.exports = router;
+ 
