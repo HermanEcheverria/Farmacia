@@ -14,19 +14,30 @@ if (!JWT_SECRET) {
 // Middleware para verificar si el usuario es administrador
 const verifyAdmin = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
-  if (!token) return res.status(401).json({ error: "Acceso no autorizado" });
+
+  if (!token) {
+    console.log("❌ No se recibió token en la solicitud.");
+    return res.status(401).json({ error: "No hay token, acceso denegado" });
+  }
 
   try {
-    const decoded = jwt.verify(token, JWT_SECRET);
-    if (decoded.role !== "admin") {
-      return res.status(403).json({ error: "Acceso denegado" });
+    console.log("🔍 Token recibido en backend:", token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("🔍 Token decodificado en backend:", decoded);
+
+    if (!decoded.role || decoded.role !== "admin") {
+      return res.status(403).json({ error: "Acceso denegado, no eres admin" });
     }
+
     req.user = decoded;
     next();
   } catch (error) {
+    console.error("❌ Error verificando token en backend:", error.message);
     return res.status(401).json({ error: "Token inválido" });
   }
 };
+
+
 
 // 🔹 Obtener todos los usuarios (solo admins)
 router.get("/users", verifyAdmin, async (req, res) => {
@@ -84,7 +95,7 @@ router.post("/login", async (req, res) => {
     const token = jwt.sign(
       { id: user._id, email: user.email, role: user.role },
       JWT_SECRET,
-      { expiresIn: "1h" }
+      { expiresIn: "7d" }
     );
 
     res.json({ message: "Inicio de sesión exitoso", token, role: user.role });

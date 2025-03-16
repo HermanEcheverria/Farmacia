@@ -11,16 +11,26 @@ export default function AdminUsers() {
 
   createEffect(async () => {
     try {
+      console.log("🔍 Enviando solicitud GET a:", `${API_URL}/auth/users`);
+      console.log("🔍 Token enviado:", token);
+  
       const response = await fetch(`${API_URL}/auth/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      if (!response.ok) throw new Error("No autorizado");
-      setUsers(await response.json());
+  
+      const data = await response.json();
+      console.log("🔍 Respuesta del backend:", data);
+  
+      if (!response.ok) throw new Error(data.error || "No autorizado");
+  
+      setUsers(data);
     } catch (err) {
+      console.error("❌ Error en la solicitud:", err);
       setError("Acceso denegado. Solo administradores pueden ver esta página.");
       setTimeout(() => navigate("/"), 3000);
     }
   });
+  
 
   const updateUser = async (id: string, active: boolean, role: string, email: string) => {
     try {
