@@ -1,126 +1,118 @@
 const express = require("express");
-const mongoose = require("mongoose");
-const multer = require("multer");
-const GridFSBucket = require("mongodb").GridFSBucket;
 const Medicamento = require("../models/Medicamento");
 const { verifyToken, verifyAdmin } = require("../utils/authMiddleware");
+const multer = require("multer");
+const { GridFsStorage } = require("multer-gridfs-storage");
+const mongoose = require("mongoose");
 
 const router = express.Router();
 
-//  Inicializar GridFSBucket 
-const conn = mongoose.connection;
-let gfs;
-
-conn.once("open", () => {
-  gfs = new GridFSBucket(conn.db, { bucketName: "uploads" });
+// Configuración de GridFS Storage
+const storage = new GridFsStorage({
+  url: process.env.MONGO_URI || "mongodb://CruzVerde:Unis@137.184.71.127:27018/farmacia?authSource=admin",
+  options: { useNewUrlParser: true, useUnifiedTopology: true },
+  file: (req, file) => {
+    return {
+      bucketName: "uploads", // Nombre del bucket en GridFS
+      filename: `${Date.now()}-${file.originalname}`
+    };
+  }
 });
 
-//  Configuración de almacenamiento en memoria para Multer
-const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-//  Ruta de prueba
-router.get("/", (req, res) => {
-  res.json({ mensaje: "Ruta de medicamentos funcionando!" });
-});
-
-// Obtener todos los medicamentos
-router.get("/listar", async (req, res) => {
+// 🔹 Obtener todos los medicamentos
+router.get("/listar", async (req, res) => {  // 📌 Antes: `router.get("/")`, ahora `/listar`
   try {
     const medicamentos = await Medicamento.find();
     res.json(medicamentos);
   } catch (error) {
+    console.error("❌ Error obteniendo medicamentos:", error);
     res.status(500).json({ error: "Error obteniendo medicamentos" });
   }
 });
 
-//  Obtener un medicamento por código
-router.get("/:codigo", async (req, res) => {
+// 🔹 Crear un nuevo medicamento (Solo Admins)
+router.post("/crear", verifyToken, verifyAdmin, async (req, res) => {  // 📌 Antes: `router.post("/")`, ahora `/crear`
   try {
-    const medicamento = await Medicamento.findOne({ codigo: req.params.codigo });
-    if (!medicamento) return res.status(404).json({ error: "Medicamento no encontrado" });
-    res.json(medicamento);
+    console.log("🔍 Recibiendo datos en backend:", req.body);
+
+    // Verificar si los campos están en req.body
+    if (!req.body.presentacion || !req.body.concentracion || !req.body.principioActivo) {
+      console.error("❌ Faltan campos obligatorios en la solicitud:", req.body);
+      return res.status(400).json({ error: "Faltan campos obligatorios en la solicitud" });
+    }
+
+    // Crear instancia de medicamento
+    const nuevoMedicamento = new Medicamento(req.body);
+    console.log("🔍 Medicamento antes de guardar en MongoDB:", nuevoMedicamento);
+
+    await nuevoMedicamento.save();
+    console.log("✅ Medicamento guardado exitosamente en MongoDB");
+
+    res.status(201).json(nuevoMedicamento);
   } catch (error) {
-    res.status(500).json({ error: "Error obteniendo medicamento" });
+    console.error("❌ Error creando medicamento:", error);
+    res.status(400).json({ error: error.errors || error.message || "Error creando medicamento" });
   }
 });
 
-//  Crear un nuevo medicamento (Solo Admins)
-router.post("/crear", verifyToken, verifyAdmin, async (req, res) => {
+// 🔹 Actualizar un medicamento por código (Solo Admins)
+router.put("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const medicamento = new Medicamento(req.body);
-    await medicamento.save();
-    res.status(201).json(medicamento);
-  } catch (error) {
-    res.status(400).json({ error: "Error creando medicamento" });
-  }
-});
-
-// Actualizar medicamento (Solo Admins)
-router.put("/actualizar/:codigo", verifyToken, verifyAdmin, async (req, res) => {
-  try {
-    const medicamento = await Medicamento.findOneAndUpdate(
+    console.log("🔍 Actualizando medicamento con código:", req.params.codigo);
+    const medicamentoActualizado = await Medicamento.findOneAndUpdate(
       { codigo: req.params.codigo },
       req.body,
       { new: true }
     );
-    if (!medicamento) return res.status(404).json({ error: "Medicamento no encontrado" });
-    res.json(medicamento);
+
+    if (!medicamentoActualizado) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
+
+    console.log("✅ Medicamento actualizado:", medicamentoActualizado);
+    res.json(medicamentoActualizado);
   } catch (error) {
+    console.error("❌ Error actualizando medicamento:", error);
     res.status(400).json({ error: "Error actualizando medicamento" });
   }
 });
 
-// Eliminar medicamento (Solo Admins)
-router.delete("/eliminar/:codigo", verifyToken, verifyAdmin, async (req, res) => {
+// 🔹 Eliminar un medicamento por código (Solo Admins)
+router.delete("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   try {
-    const medicamento = await Medicamento.findOneAndDelete({ codigo: req.params.codigo });
-    if (!medicamento) return res.status(404).json({ error: "Medicamento no encontrado" });
+    console.log("🔍 Eliminando medicamento con código:", req.params.codigo);
+    const medicamentoEliminado = await Medicamento.findOneAndDelete({ codigo: req.params.codigo });
+
+    if (!medicamentoEliminado) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
+
+    console.log("✅ Medicamento eliminado:", medicamentoEliminado);
     res.json({ message: "Medicamento eliminado" });
   } catch (error) {
-    res.status(500).json({ error: "Error eliminando medicamento" });
+    console.error("❌ Error eliminando medicamento:", error);
+    res.status(400).json({ error: "Error eliminando medicamento" });
   }
 });
 
-// Subir imagen de medicamento a GridFS (Solo Admins)
+// 🔹 Subir una imagen de medicamento
 router.post("/upload/:codigo", verifyToken, verifyAdmin, upload.single("imagen"), async (req, res) => {
   try {
     const medicamento = await Medicamento.findOne({ codigo: req.params.codigo });
-    if (!medicamento) return res.status(404).json({ error: "Medicamento no encontrado" });
 
-    if (!gfs) return res.status(500).json({ error: "GridFS no inicializado" });
+    if (!medicamento) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
 
-    const filename = `${Date.now()}-${req.file.originalname}`;
-    const uploadStream = gfs.openUploadStream(filename, {
-      contentType: req.file.mimetype,
-    });
+    medicamento.fotos.push(req.file.id); // Guardar el ID del archivo en GridFS
+    await medicamento.save();
 
-    uploadStream.end(req.file.buffer);
-    uploadStream.on("finish", async () => {
-      medicamento.fotos.push(filename);
-      await medicamento.save();
-      res.json({ message: "Imagen subida con éxito", fotos: medicamento.fotos });
-    });
-
+    res.json({ message: "Imagen subida con éxito", fileId: req.file.id });
   } catch (error) {
-    res.status(500).json({ error: "Error al subir imagen" });
-  }
-});
-
-//  Obtener una imagen de GridFS
-router.get("/image/:filename", async (req, res) => {
-  try {
-    if (!gfs) return res.status(500).json({ error: "GridFS no inicializado" });
-
-    gfs.find({ filename: req.params.filename }).toArray((err, files) => {
-      if (!files || files.length === 0) {
-        return res.status(404).json({ error: "Imagen no encontrada" });
-      }
-
-      gfs.openDownloadStreamByName(req.params.filename).pipe(res);
-    });
-  } catch (error) {
-    res.status(500).json({ error: "Error obteniendo la imagen" });
+    console.error("❌ Error subiendo imagen:", error);
+    res.status(400).json({ error: "Error subiendo imagen" });
   }
 });
 
