@@ -7,6 +7,8 @@ export const routes: RouteDefinition[] = [
   { path: "/about", component: lazy(() => import("./pages/about")) },
   { path: "/signup", component: lazy(() => import("./pages/signup")) },
   { path: "/login", component: lazy(() => import("./pages/login")) },
-  { path: "/admin", component: lazy(() => import("./pages/admin")) }, 
+  { path: "/admin", component: lazy(() => import("./pages/PortalAdmin")) }, 
+  { path: "/admin/usuarios", component: lazy(() => import("./pages/admin")) }, 
+  { path: "/admin/medicamentos", component: lazy(() => import("./pages/adminMedicamentos")) }, 
   { path: "**", component: lazy(() => import("./errors/404")) },
 ];
