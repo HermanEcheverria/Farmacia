@@ -1,5 +1,5 @@
 import { createSignal, createEffect, For } from "solid-js";
-import API_URL from "../utils/api";
+import { API_URL } from "../utils/api";
 
 export default function AdminMedicamentos() {
   const [medicamentos, setMedicamentos] = createSignal([]);

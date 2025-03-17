@@ -26,6 +26,7 @@ const Navbar = () => {
           <li><A href="/historia" class="hover:text-gray-200 transition">Historia</A></li>
           <li><A href="/faq" class="hover:text-gray-200 transition">FAQ</A></li>
           <li><A href="/contacto" class="hover:text-gray-200 transition">Contacto</A></li>
+          <li><A href="/searchMedicamentos" class="hover:text-gray-200 transition">Buscar Medicamentos</A></li>
 
           {/* Si el usuario está autenticado */}
           {user ? (

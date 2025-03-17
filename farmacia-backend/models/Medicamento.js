@@ -15,6 +15,7 @@ const medicamentoSchema = new mongoose.Schema({
   stock: { type: Number, required: true },
   precio: { type: Number, required: true },
   createdAt: { type: Date, default: Date.now },
+  comentarios: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comentario" }]
 });
 
 module.exports = mongoose.model("Medicamento", medicamentoSchema);
