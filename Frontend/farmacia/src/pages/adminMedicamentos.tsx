@@ -19,6 +19,8 @@ export default function AdminMedicamentos() {
   const [fotos, setFotos] = createSignal<string[]>([]); 
   const [fotoInput, setFotoInput] = createSignal("");
   const [isEditing, setIsEditing] = createSignal(false);
+  const [descripcion, setDescripcion] = createSignal("");
+  const [requiereReceta, setRequiereReceta] = createSignal(false);
 
   // Cargar la lista de medicamentos
   createEffect(async () => {
@@ -60,6 +62,8 @@ export default function AdminMedicamentos() {
       concentracion: concentracion(),
       principioActivo: principioActivo(),
       fotos: fotos(), // 📌 Ahora enviamos URLs de imágenes
+      descripcion: descripcion(),
+      requiereReceta: requiereReceta(),
     };
 
     console.log("🔍 Enviando datos al backend:", medicamentoData);
@@ -105,6 +109,8 @@ export default function AdminMedicamentos() {
       setFotos([]);
       setFotoInput("");
       setIsEditing(false);
+      setDescripcion("");
+      setRequiereReceta(false);
     } catch (err) {
       console.error(`❌ Error ${isEditing() ? "editando" : "agregando"} medicamento:`, err);
       setError(`No se pudo ${isEditing() ? "editar" : "agregar"} el medicamento.`);
@@ -125,6 +131,8 @@ export default function AdminMedicamentos() {
     setPrincipioActivo(medicamento.principioActivo);
     setFotos(medicamento.fotos || []); // 📌 Cargar las URLs de imágenes
     setIsEditing(true);
+    setDescripcion(medicamento.descripcion);
+    setRequiereReceta(medicamento.requiereReceta);
   };
 
   // Eliminar un medicamento
@@ -174,6 +182,12 @@ export default function AdminMedicamentos() {
           value={concentracion()} onInput={(e) => setConcentracion(e.currentTarget.value)} />
         <input type="text" placeholder="Principio Activo" class="border p-2 w-full mb-2"
           value={principioActivo()} onInput={(e) => setPrincipioActivo(e.currentTarget.value)} />
+        <input type="text" placeholder="Descripción" class="border p-2 w-full mb-2"
+          value={descripcion()} onInput={(e) => setDescripcion(e.currentTarget.value)} />
+        <label class="flex items-center mb-2">
+          <input type="checkbox" class="mr-2" checked={requiereReceta()} onChange={(e) => setRequiereReceta(e.currentTarget.checked)} />
+          Requiere Receta
+        </label>
   
         {/* Sección para agregar imágenes con URLs */}
         <input type="text" placeholder="URL de la imagen" class="border p-2 w-full mb-2"
@@ -237,6 +251,8 @@ export default function AdminMedicamentos() {
                 <p class="text-gray-600"><strong>Presentación:</strong> {medicamento.presentacion}</p>
                 <p class="text-gray-600"><strong>Concentración:</strong> {medicamento.concentracion}</p>
                 <p class="text-gray-600"><strong>Principio Activo:</strong> {medicamento.principioActivo}</p>
+                <p class="text-gray-600"><strong>Descripción:</strong>{medicamento.descripcion}</p>
+                <p class="text-gray-600"><strong>Requiere Receta:</strong> {medicamento.requiereReceta ? "Sí" : "No"}</p>
   
                 {/* Carrusel de imágenes */}
                 <div class="relative w-full h-48 mt-4">
