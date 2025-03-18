@@ -18,10 +18,27 @@ export default function MedicamentoDetalle() {
   const { id } = useParams();
   const [medicamento, { refetch: refetchMedicamento }] = createResource(() => id, fetchMedicamento);
   const [fetchedComentarios, { refetch: refetchComentarios }] = createResource(() => id, fetchComentarios);
-  
+
   // Signal para el nuevo comentario raíz
   const [nuevoComentario, setNuevoComentario] = createSignal("");
-  const [mostrarFormulario, setMostrarFormulario] = createSignal(null);
+  const [currentImageIndex, setCurrentImageIndex] = createSignal(0);
+
+  // Función para navegar entre imágenes
+  const nextImage = () => {
+    if (medicamento()?.fotos?.length) {
+      setCurrentImageIndex((prev) =>
+        prev === medicamento().fotos.length - 1 ? 0 : prev + 1
+      );
+    }
+  };
+
+  const prevImage = () => {
+    if (medicamento()?.fotos?.length) {
+      setCurrentImageIndex((prev) =>
+        prev === 0 ? medicamento().fotos.length - 1 : prev - 1
+      );
+    }
+  };
 
   const agregarComentario = async (parentId: string = "root", texto: string) => {
     if (!texto.trim()) return;
@@ -43,7 +60,6 @@ export default function MedicamentoDetalle() {
 
     if (response.ok) {
       setNuevoComentario("");
-      setMostrarFormulario(null);
       refetchComentarios();
     } else {
       const errorData = await response.json();
@@ -103,6 +119,31 @@ export default function MedicamentoDetalle() {
     <div class="p-6 max-w-2xl mx-auto bg-white shadow-md rounded-lg">
       <Show when={medicamento()}>
         <h1 class="text-3xl font-bold text-gray-900">{medicamento().nombre}</h1>
+
+        {/* 🔹 Carrusel de Imágenes */}
+        <Show when={medicamento().fotos?.length > 0}>
+          <div class="relative w-full h-64 mt-4">
+            <img
+              src={medicamento().fotos[currentImageIndex()]}
+              class="w-full h-64 object-cover rounded-lg shadow-md"
+            />
+            <Show when={medicamento().fotos.length > 1}>
+              <button
+                class="absolute left-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full shadow-lg hover:bg-opacity-75 transition-all"
+                onClick={prevImage}
+              >
+                ❮
+              </button>
+              <button
+                class="absolute right-2 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-50 text-white p-2 rounded-full shadow-lg hover:bg-opacity-75 transition-all"
+                onClick={nextImage}
+              >
+                ❯
+              </button>
+            </Show>
+          </div>
+        </Show>
+
         <p class="text-gray-700 mt-2">
           <strong>Principio Activo:</strong> {medicamento().principioActivo}
         </p>
