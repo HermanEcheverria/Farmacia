@@ -1,6 +1,6 @@
 import { createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import API_URL from "../utils/api";
+import {API_URL} from "../utils/api";
 
 
 export default function Login() {

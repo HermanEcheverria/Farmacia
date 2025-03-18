@@ -1,8 +1,10 @@
 const express = require("express");
+const mongoose = require("mongoose");
 const Medicamento = require("../models/Medicamento");
 const Comentario = require("../models/Comentario");
 const User = require("../models/User");
 const { verifyToken, verifyAdmin } = require("../utils/authMiddleware");
+const { allowComment } = require("../utils/allowComment");
 
 const router = express.Router();
 
@@ -103,29 +105,13 @@ router.get("/buscar", async (req, res) => {
   }
 });
 
-// 🔹 Obtener detalles de un medicamento con comentarios
 router.get("/:id", async (req, res) => {
   try {
     console.log("🔍 Buscando medicamento con ID:", req.params.id);
-
-    const medicamento = await Medicamento.findById(req.params.id)
-      .populate({
-        path: "comentarios",
-        populate: [
-          { path: "user", select: "email role" }, // Cargar usuario del comentario
-          { 
-            path: "respuestas", 
-            populate: { path: "user", select: "email role" } // Cargar respuestas anidadas
-          }
-        ]
-      });
-
+    const medicamento = await Medicamento.findById(req.params.id).lean();
     if (!medicamento) {
-      console.log("⚠️ Medicamento no encontrado");
       return res.status(404).json({ error: "Medicamento no encontrado" });
     }
-
-    console.log("✅ Medicamento encontrado:", medicamento);
     res.json(medicamento);
   } catch (error) {
     console.error("❌ Error obteniendo medicamento:", error);
@@ -133,48 +119,61 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+// 🔹 Obtener la jerarquía de comentarios para un medicamento
+router.get("/:id/comentarios", async (req, res) => {
+  try {
+    const medicamentoId = req.params.id;
+    // Se buscan todos los comentarios asociados al medicamento
+    const comentarios = await Comentario.find({ medicamento: medicamentoId })
+      .populate("user", "email") // Poblar el campo "user" con el email
+      .lean();
 
+    // Función recursiva para construir el árbol de comentarios
+    const buildTree = (comentarios, parentId = null) => {
+      return comentarios
+        .filter((comentario) =>
+          parentId === null
+            ? comentario.parentId === null
+            : comentario.parentId &&
+              comentario.parentId.toString() === parentId.toString()
+        )
+        .map((comentario) => ({
+          ...comentario,
+          respuestas: buildTree(comentarios, comentario._id),
+        }));
+    };
 
-// 🔹 Agregar un comentario (Solo usuarios registrados)
-router.post("/:id/comentarios", verifyToken, async (req, res) => {
+    const tree = buildTree(comentarios);
+    res.json(tree);
+  } catch (error) {
+    console.error("❌ Error obteniendo comentarios anidados:", error);
+    res.status(500).json({ error: "Error al obtener comentarios anidados" });
+  }
+});
+
+// 🔹 Agregar un comentario o respuesta (Solo para usuarios permitidos)
+router.post("/:id/comentarios", verifyToken, allowComment, async (req, res) => {
   try {
     const { texto, respuestaA } = req.body;
-    const { id: medicamentoId } = req.params;
+    const medicamentoId = req.params.id;
 
     if (!texto) {
       return res.status(400).json({ error: "El comentario no puede estar vacío" });
     }
 
-    console.log("🔍 Usuario autenticado:", req.user);
-
     const nuevoComentario = new Comentario({
-      user: req.user.id,
+      user: req.user.id,           // Se asigna el usuario autenticado (desde verifyToken)
       medicamento: medicamentoId,
       texto,
-      respuestas: [] // 🔹 Asegurar que el nuevo comentario siempre tenga este campo
+      parentId: respuestaA || null, // Si es respuesta, se asigna; si no, null (comentario raíz)
     });
 
     await nuevoComentario.save();
-
-    if (respuestaA) {
-      const comentarioPadre = await Comentario.findById(respuestaA);
-      if (!comentarioPadre) return res.status(404).json({ error: "Comentario padre no encontrado." });
-
-      comentarioPadre.respuestas.push(nuevoComentario._id);
-      await comentarioPadre.save();
-    } else {
-      await Medicamento.findByIdAndUpdate(medicamentoId, {
-        $push: { comentarios: nuevoComentario._id }
-      });
-    }
-
     res.status(201).json(nuevoComentario);
   } catch (error) {
     console.error("❌ Error agregando comentario:", error);
     res.status(500).json({ error: "Error agregando comentario" });
   }
 });
-
-
 
 module.exports = router;
