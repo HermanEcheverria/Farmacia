@@ -13,6 +13,10 @@ export default function PortalAdmin() {
           <h2 class="text-2xl font-semibold mb-4">Gestión de Medicamentos</h2>
           <p class="text-gray-600">Agregar, editar y eliminar medicamentos</p>
         </A>
+        <A href="/solicitarReceta" class="bg-white p-6 shadow-lg rounded-lg text-center">
+          <h2 class="text-2xl font-semibold mb-4">Solicitar Receta</h2>
+          <p class="text-gray-600">Solicitar una receta médica</p>
+        </A>
       </div>
     </div>
   );
