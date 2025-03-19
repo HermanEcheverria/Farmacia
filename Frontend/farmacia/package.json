@@ -19,6 +19,7 @@
   },
   "dependencies": {
     "@solidjs/router": "^0.15.1",
+    "chart.js": "^4.4.8",
     "emailjs-com": "^3.2.0",
     "react-responsive-carousel": "^3.2.23",
     "solid-js": "^1.9.5"

@@ -3,7 +3,8 @@ const express = require("express");
 const axios = require("axios");
 const PDFDocument = require("pdfkit");
 const { verifyToken } = require("../utils/authMiddleware");
-const Medicamento = require("../models/Medicamento"); // MongoDB
+const Medicamento = require("../models/Medicamento");
+const Venta = require("../models/Venta");
 
 const router = express.Router();
 
@@ -247,6 +248,18 @@ router.post("/comprar", verifyToken, async (req, res) => {
         { $inc: { stock: -item.cantidadAVender } }
       );
     }
+    // Registrar la venta en la colección "ventas"
+    const venta = new Venta({
+      medicamentos: medicamentosParaVenta.map(item => ({
+        medicamentoId: item.medicamentoDoc._id, 
+        cantidad: item.cantidadAVender,
+        precioUnitario: item.precioUnitario
+      })),
+      montoTotal: total,
+      usuario: req.user._id
+    });
+    await venta.save();
+    console.log("✅ Venta registrada en la colección ventas:", venta);
 
 // Generar factura PDF utilizando pdfkit
 const doc = new PDFDocument({ size: "A4", margin: 50 });

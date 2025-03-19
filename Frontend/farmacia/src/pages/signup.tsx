@@ -1,7 +1,7 @@
 import { createSignal } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { sendEmail } from "../utils/email";
-import API_URL from "../utils/api";
+import {API_URL} from "../utils/api";
 
 export default function Signup() {
   const [email, setEmail] = createSignal("");

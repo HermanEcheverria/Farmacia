@@ -17,6 +17,10 @@ export default function PortalAdmin() {
           <h2 class="text-2xl font-semibold mb-4">Solicitar Receta</h2>
           <p class="text-gray-600">Solicitar una receta médica</p>
         </A>
+        <A href="/dashboard" class="bg-white p-6 shadow-lg rounded-lg text-center">
+          <h2 class="text-2xl font-semibold mb-4">Dashboard</h2>
+          <p class="text-gray-600">Ver métricas y estadísticas</p>
+        </A>
       </div>
     </div>
   );
