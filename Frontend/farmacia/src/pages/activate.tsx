@@ -1,7 +1,7 @@
 import { useParams } from "@solidjs/router";
 import { createEffect, createSignal } from "solid-js";
 import { sendEmail } from "../utils/email";
-import API_URL from "../utils/api";
+import {API_URL} from "../utils/api";
 
 
 
