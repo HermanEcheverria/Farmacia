@@ -49,23 +49,45 @@ router.get("/users", verifyAdmin, async (req, res) => {
   }
 });
 
-// 🔹 Activar cuenta y asignar rol (solo admins)
+// 🔹 Activar cuenta, cambiar rol o correo (solo admins)
 router.put("/users/:id", verifyAdmin, async (req, res) => {
   try {
-    const { active, role } = req.body;
-    const user = await User.findByIdAndUpdate(
-      req.params.id,
-      { active, role },
-      { new: true }
-    );
+    const { email, role, active } = req.body;
 
-    if (!user) return res.status(404).json({ error: "Usuario no encontrado" });
+    // Construir el objeto de actualización dinámicamente
+    const updateData = {};
 
-    res.json({ message: "Usuario actualizado", user });
+    if (email) {
+      // Validar que el email no se repita
+      const existingUser = await User.findOne({ email });
+      if (existingUser && existingUser._id.toString() !== req.params.id) {
+        return res.status(400).json({ error: "El correo ya está en uso por otro usuario." });
+      }
+      updateData.email = email;
+    }
+    
+    if (role) updateData.role = role;
+    if (typeof active === "boolean") updateData.active = active;
+
+    // Verificar que al menos un campo se esté actualizando
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No se proporcionaron datos válidos para actualizar." });
+    }
+
+    // Actualizar el usuario
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    if (!updatedUser) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    res.json({ message: "Usuario actualizado", user: updatedUser });
   } catch (error) {
+    console.error("❌ Error actualizando usuario:", error);
     res.status(500).json({ error: "Error actualizando usuario" });
   }
 });
+
+
+
 
 // 🔹 Ruta de inicio de sesión (login)
 router.post("/login", async (req, res) => {
@@ -104,6 +126,42 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
+// 🔹 Ruta para registro de usuarios (signup)
+router.post("/signup", async (req, res) => {
+  try {
+    console.log("🟢 Recibida solicitud de registro con datos:", req.body);
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "El correo y la contraseña son requeridos." });
+    }
+
+    // Verificar si el usuario ya existe
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "El usuario ya está registrado." });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear un nuevo usuario en la base de datos
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      role: "sin-registrar",  // Por defecto, se asigna el rol 'user'
+      active: false  // Por defecto, el usuario está inactivo hasta que un admin lo active
+    });
+
+    await newUser.save();
+
+    res.json({ message: "Usuario registrado correctamente. Esperando activación por un administrador." });
+  } catch (error) {
+    console.error("❌ Error en /signup:", error);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
 
 
 module.exports = router;

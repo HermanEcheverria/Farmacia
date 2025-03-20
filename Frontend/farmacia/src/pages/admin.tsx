@@ -1,28 +1,27 @@
-import { createSignal, createEffect, For } from "solid-js";
+import { createSignal, createEffect, For, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { sendEmail } from "../utils/email";
-import {API_URL} from "../utils/api";
+import { API_URL } from "../utils/api";
 
 export default function AdminUsers() {
   const [users, setUsers] = createSignal([]);
   const [error, setError] = createSignal("");
+  const [editUser, setEditUser] = createSignal(null);
+  const [newEmail, setNewEmail] = createSignal("");
+  const [newRole, setNewRole] = createSignal("");
+  const [newActive, setNewActive] = createSignal(false);
   const token = localStorage.getItem("token");
   const navigate = useNavigate();
 
   createEffect(async () => {
     try {
-      console.log("🔍 Enviando solicitud GET a:", `${API_URL}/auth/users`);
-      console.log("🔍 Token enviado:", token);
-  
       const response = await fetch(`${API_URL}/auth/users`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-  
+
       const data = await response.json();
-      console.log("🔍 Respuesta del backend:", data);
-  
       if (!response.ok) throw new Error(data.error || "No autorizado");
-  
+
       setUsers(data);
     } catch (err) {
       console.error("❌ Error en la solicitud:", err);
@@ -30,9 +29,8 @@ export default function AdminUsers() {
       setTimeout(() => navigate("/"), 3000);
     }
   });
-  
 
-  const updateUser = async (id: string, active: boolean, role: string, email: string) => {
+  const updateUser = async (id: string) => {
     try {
       const response = await fetch(`${API_URL}/auth/users/${id}`, {
         method: "PUT",
@@ -40,23 +38,37 @@ export default function AdminUsers() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ active, role }),
+        body: JSON.stringify({
+          email: newEmail(),
+          role: newRole(),
+          active: newActive()
+        }),
       });
 
-      if (!response.ok) throw new Error("Error al actualizar usuario");
-      const updatedUser = await response.json();
-
-      // ✅ Enviar email de activación con el rol si la cuenta fue activada
-      if (active) {
-        await sendEmail(email, "activated", role);  // ✅ Ahora enviamos el rol
+      if (!response.ok) {
+        const errorResponse = await response.json();
+        throw new Error(errorResponse.error || "Error al actualizar usuario");
       }
 
-      // ✅ Actualizar el estado de la lista de usuarios
+      const updatedUser = await response.json();
+
+      if (newActive()) {
+        await sendEmail(newEmail(), "activated", newRole());
+      }
+
       setUsers(users().map((user) => (user._id === id ? updatedUser.user : user)));
+      setEditUser(null);
     } catch (err) {
       console.error("Error actualizando usuario:", err);
       setError("No se pudo actualizar el usuario.");
     }
+  };
+
+  const openEditModal = (user) => {
+    setEditUser(user);
+    setNewEmail(user.email);
+    setNewRole(user.role);
+    setNewActive(user.active);
   };
 
   return (
@@ -77,34 +89,77 @@ export default function AdminUsers() {
             {(user) => (
               <tr>
                 <td class="border p-2">{user.email}</td>
+                <td class="border p-2">{user.role}</td>
+                <td class="border p-2">{user.active ? "Activo" : "Inactivo"}</td>
                 <td class="border p-2">
-                  <select
-                    class="border p-1"
-                    value={user.role}
-                    onChange={(e) => updateUser(user._id, user.active, e.currentTarget.value, user.email)}
+                  <button 
+                    class="bg-blue-500 text-white px-2 py-1 rounded"
+                    onClick={() => openEditModal(user)}
                   >
-                    <option value="admin">Admin</option>
-                    <option value="empleado">Empleado</option>
-                    <option value="paciente">Paciente</option>
-                    <option value="interconexiones">Interconexiones</option>
-                  </select>
-                </td>
-                <td class="border p-2">
-                  <button
-                    class={`px-2 py-1 rounded ${user.active ? "bg-green-500" : "bg-gray-400"} text-white`}
-                    onClick={() => updateUser(user._id, !user.active, user.role, user.email)}
-                  >
-                    {user.active ? "Activo" : "Inactivo"}
+                    Editar
                   </button>
-                </td>
-                <td class="border p-2">
-                  <button class="bg-blue-500 text-white px-2 py-1 rounded">Editar</button>
                 </td>
               </tr>
             )}
           </For>
         </tbody>
       </table>
+
+      {/* Modal para editar usuario */}
+      <Show when={editUser()}>
+        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <div class="bg-white p-8 rounded shadow-md w-96">
+            <h2 class="text-xl mb-4">Editar Usuario</h2>
+
+            <label class="block mb-2">Correo Electrónico:</label>
+            <input
+              type="email"
+              class="border p-2 mb-4 w-full"
+              value={newEmail()}
+              onInput={(e) => setNewEmail(e.currentTarget.value)}
+            />
+
+            <label class="block mb-2">Rol:</label>
+            <select
+              class="border p-2 mb-4 w-full"
+              value={newRole()}
+              onChange={(e) => setNewRole(e.currentTarget.value)}
+            >
+              <option value="admin">Admin</option>
+              <option value="empleado">Empleado</option>
+              <option value="paciente">Paciente</option>
+              <option value="interconexiones">Interconexiones</option>
+              <option value="sin-registrar">Sin Registrar</option>
+            </select>
+
+            <label class="block mb-2">Estado:</label>
+            <div class="flex items-center mb-4">
+              <input
+                type="checkbox"
+                checked={newActive()}
+                onChange={(e) => setNewActive(e.currentTarget.checked)}
+                class="mr-2"
+              />
+              <span>{newActive() ? "Activo" : "Inactivo"}</span>
+            </div>
+
+            <div class="flex justify-end space-x-2">
+              <button
+                class="bg-green-500 text-white px-4 py-2 rounded"
+                onClick={() => updateUser(editUser()._id)}
+              >
+                Guardar
+              </button>
+              <button
+                class="bg-red-500 text-white px-4 py-2 rounded"
+                onClick={() => setEditUser(null)}
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        </div>
+      </Show>
     </div>
   );
 }
