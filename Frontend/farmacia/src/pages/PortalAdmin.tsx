@@ -21,6 +21,11 @@ export default function PortalAdmin() {
           <h2 class="text-2xl font-semibold mb-4">Dashboard</h2>
           <p class="text-gray-600">Ver métricas y estadísticas</p>
         </A>
+        <A href="/admin/pages" class="bg-white p-6 shadow-lg rounded-lg text-center">
+          <h2 class="text-2xl font-semibold mb-4">Gestión de Páginas</h2>
+          <p class="text-gray-600">Administrar páginas del sitio web</p>
+        </A>
+      
       </div>
     </div>
   );

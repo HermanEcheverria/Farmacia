@@ -4,15 +4,16 @@ import Home from "./pages/home";
 
 export const routes: RouteDefinition[] = [
   { path: "/", component: Home },
-  { path: "/about", component: lazy(() => import("./pages/about")) },
   { path: "/signup", component: lazy(() => import("./pages/signup")) },
   { path: "/login", component: lazy(() => import("./pages/login")) },
-  { path: "/admin", component: lazy(() => import("./pages/PortalAdmin")) }, 
-  { path: "/admin/usuarios", component: lazy(() => import("./pages/admin")) }, 
-  { path: "/admin/medicamentos", component: lazy(() => import("./pages/adminMedicamentos")) }, 
-  {path: "/solicitarReceta", component: lazy(() => import("./pages/SolicitarReceta"))},
-  {path: "/searchMedicamentos", component: lazy(() => import("./pages/SearchMedicamentos"))},
-  { path: "/medicamentos/:id", component: lazy(() => import("./pages/MedicamentoDetalle")) }, 
+  { path: "/admin", component: lazy(() => import("./pages/PortalAdmin")) },
+  { path: "/admin/usuarios", component: lazy(() => import("./pages/admin")) },
+  { path: "/admin/medicamentos", component: lazy(() => import("./pages/adminMedicamentos")) },
+  { path: "/admin/pages", component: lazy(() => import("./pages/AdminPagesManager")) },
+  { path: "/solicitarReceta", component: lazy(() => import("./pages/SolicitarReceta")) },
+  { path: "/searchMedicamentos", component: lazy(() => import("./pages/SearchMedicamentos")) },
+  { path: "/medicamentos/:id", component: lazy(() => import("./pages/MedicamentoDetalle")) },
   { path: "/dashboard", component: lazy(() => import("./pages/Dashboard")) },
+  { path: "/:slug", component: lazy(() => import("./pages/DynamicPage")) },
   { path: "**", component: lazy(() => import("./errors/404")) },
 ];

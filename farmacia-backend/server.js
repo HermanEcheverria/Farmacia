@@ -7,6 +7,8 @@ const authRoutes = require("./routes/authRoutes");
 const medicamentoRoutes = require("./routes/medicamentoRoutes");
 const recetasRoutes = require("./routes/recetasRoutes"); 
 const dashboardRoutes = require("./routes/dashboardRoutes");
+const pageRoutes = require("./routes/pageRoutes");
+
 
 dotenv.config();
 
@@ -26,7 +28,8 @@ mongoose.connect(process.env.MONGO_URI || "mongodb://CruzVerde:Unis@137.184.71.1
 app.use("/auth", authRoutes);
 app.use("/medicamentos", medicamentoRoutes);
 app.use("/recetas", recetasRoutes);
-app.use("/dashboard", dashboardRoutes); 
+app.use("/dashboard", dashboardRoutes);
+app.use("/pages", pageRoutes); 
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);

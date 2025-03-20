@@ -173,6 +173,7 @@ export default function MedicamentoDetalle() {
               onInput={(e) => setNuevoComentario(e.target.value)}
             ></textarea>
             <button
+              type="button"
               class="mt-3 bg-blue-500 text-white font-medium p-2 rounded-lg hover:bg-blue-600 transition"
               onClick={async () => {
                 await agregarComentario("root", nuevoComentario());
