@@ -176,4 +176,35 @@ router.post("/:id/comentarios", verifyToken, allowComment, async (req, res) => {
   }
 });
 
+// 🔹 Procesar la compra de un medicamento
+router.post("/:id/comprar", async (req, res) => {
+  try {
+    const { cantidad } = req.body;
+    const medicamentoId = req.params.id;
+
+    if (!cantidad || cantidad <= 0) {
+      return res.status(400).json({ error: "La cantidad debe ser mayor a 0." });
+    }
+
+    const medicamento = await Medicamento.findById(medicamentoId);
+
+    if (!medicamento) {
+      return res.status(404).json({ error: "Medicamento no encontrado." });
+    }
+
+    if (cantidad > medicamento.stock) {
+      return res.status(400).json({ error: "La cantidad solicitada excede el stock disponible." });
+    }
+
+    // Deduct the quantity from stock
+    medicamento.stock -= cantidad;
+    await medicamento.save();
+
+    res.json({ message: "Compra procesada con éxito.", medicamento });
+  } catch (error) {
+    console.error("❌ Error procesando la compra:", error);
+    res.status(500).json({ error: "Error procesando la compra." });
+  }
+});
+
 module.exports = router;

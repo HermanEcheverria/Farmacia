@@ -22,6 +22,8 @@ export default function MedicamentoDetalle() {
   // Signal para el nuevo comentario raíz
   const [nuevoComentario, setNuevoComentario] = createSignal("");
   const [currentImageIndex, setCurrentImageIndex] = createSignal(0);
+  const [cantidad, setCantidad] = createSignal(1); // Signal for purchase quantity
+  const [showModal, setShowModal] = createSignal(false); // Signal to control modal visibility
 
   // Función para navegar entre imágenes
   const nextImage = () => {
@@ -64,6 +66,41 @@ export default function MedicamentoDetalle() {
     } else {
       const errorData = await response.json();
       alert(`Error: ${errorData.error}`);
+    }
+  };
+
+  const procesarCompra = async () => {
+    const cantidadSeleccionada = cantidad();
+    if (cantidadSeleccionada <= 0) {
+      alert("La cantidad debe ser mayor a 0.");
+      return;
+    }
+
+    if (cantidadSeleccionada > medicamento().stock) {
+      alert("La cantidad seleccionada excede el stock disponible.");
+      return;
+    }
+
+    try {
+      // Update stock in the backend
+      const response = await fetch(`${API_URL}/medicamentos/${id}/comprar`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ cantidad: cantidadSeleccionada }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Error procesando la compra.");
+      }
+
+      alert("Compra realizada con éxito.");
+      refetchMedicamento(); // Refresh medicamento details
+      setShowModal(false); // Close the modal
+    } catch (err) {
+      alert(`Error: ${err.message}`);
     }
   };
 
@@ -156,6 +193,62 @@ export default function MedicamentoDetalle() {
         <p class="text-gray-800 font-semibold mt-2">
           <strong>Precio:</strong> ${medicamento()?.precio ? medicamento().precio.toFixed(2) : "No disponible"}
         </p>
+        <p class="text-gray-700">
+          <strong>Stock Disponible:</strong> {medicamento().stock}
+        </p>
+
+        {/* Botón para procesar venta si no requiere receta */}
+        <Show when={!medicamento().requiereReceta}>
+          <div class="mt-4">
+            <label class="block text-gray-700 font-medium mb-2">Cantidad:</label>
+            <input
+              type="number"
+              min="1"
+              max={medicamento().stock}
+              value={cantidad()}
+              onInput={(e) => setCantidad(parseInt(e.currentTarget.value))}
+              class="border p-2 rounded w-full mb-4"
+            />
+            <button
+              class="bg-blue-500 text-white font-medium p-2 rounded-lg hover:bg-blue-600 transition w-full"
+              onClick={() => setShowModal(true)} // Open the modal
+            >
+              Comprar
+            </button>
+          </div>
+        </Show>
+
+        {/* Modal for purchase confirmation */}
+        <Show when={showModal()}>
+          <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div class="bg-white p-6 rounded-lg shadow-lg max-w-sm w-full">
+              <h2 class="text-xl font-bold mb-4">Confirmar Compra</h2>
+              <p class="mb-2">
+                <strong>Medicamento:</strong> {medicamento().nombre}
+              </p>
+              <p class="mb-2">
+                <strong>Cantidad:</strong> {cantidad()}
+              </p>
+              <p class="mb-4">
+                <strong>Total:</strong> ${medicamento().precio * cantidad()}
+              </p>
+              <div class="flex justify-end gap-2">
+                <button
+                  class="bg-gray-300 text-gray-800 px-4 py-2 rounded hover:bg-gray-400"
+                  onClick={() => setShowModal(false)} // Close the modal
+                >
+                  Cancelar
+                </button>
+                <button
+                  class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
+                  onClick={procesarCompra}
+                >
+                  Confirmar
+                </button>
+              </div>
+            </div>
+          </div>
+        </Show>
 
         <h2 class="text-2xl font-semibold text-gray-900 mt-6">Comentarios</h2>
         <div class="mt-4 space-y-4">
