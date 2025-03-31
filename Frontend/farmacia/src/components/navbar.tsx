@@ -29,6 +29,11 @@ const Navbar = () => {
               Inicio
             </A>
           </li>
+          <li> 
+            <A href="/searchMedicamentos" class="hover:text-gray-200 transition">
+              Buscar
+            </A>
+          </li>
          
 
           {/* Links dinámicos: por ejemplo, si creas nuevas páginas */}

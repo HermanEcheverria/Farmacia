@@ -23,7 +23,7 @@ export default function Home() {
               href="/dashboard"
               class="inline-block bg-white text-farmacia-primary-1 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition duration-300"
             >
-              Ir al Panel de Control
+              Ir al Panel
             </A>
           ) : (
             <A
@@ -94,7 +94,7 @@ export default function Home() {
               href="/dashboard"
               class="mt-6 inline-block bg-white text-farmacia-primary-1 px-8 py-3 rounded-lg font-semibold hover:bg-gray-200 transition duration-300"
             >
-              Ir al Panel de Control
+              Ir al Panel
             </A>
           ) : (
             <A
