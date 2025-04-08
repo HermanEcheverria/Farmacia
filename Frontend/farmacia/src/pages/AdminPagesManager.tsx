@@ -1,14 +1,12 @@
 // src/pages/AdminPagesManager.tsx
-import { A, useNavigate } from "@solidjs/router";
+import { useNavigate } from "@solidjs/router";
 import { createSignal, onMount } from "solid-js";
 import { API_URL } from "../utils/api";
+import { getUser } from "../utils/auth";
 
 export default function AdminPagesManager() {
   const navigate = useNavigate();
-
-  // Estado para el listado de páginas
   const [pages, setPages] = createSignal<any[]>([]);
-  // Estado para el formulario (modo edición o creación)
   const [selectedPage, setSelectedPage] = createSignal<any>(null);
   const [title, setTitle] = createSignal("");
   const [slug, setSlug] = createSignal("");
@@ -17,15 +15,17 @@ export default function AdminPagesManager() {
   const [error, setError] = createSignal("");
   const [loading, setLoading] = createSignal(false);
 
+  const user = getUser();
+
   const fetchPages = async () => {
     try {
       const token = localStorage.getItem("token");
       if (!token) throw new Error("No autenticado");
-  
+
       const res = await fetch(`${API_URL}/pages/admin`, {
-        headers: { 
+        headers: {
           "Content-Type": "application/json",
-          "Authorization": `Bearer ${token}`  // Agrega el token aquí
+          "Authorization": `Bearer ${token}`
         },
       });
       if (!res.ok) throw new Error("Error al cargar páginas");
@@ -35,16 +35,9 @@ export default function AdminPagesManager() {
       setError(err.message);
     }
   };
-  
-  
-  
-  
 
-  onMount(() => {
-    fetchPages();
-  });
+  onMount(fetchPages);
 
-  // Función para seleccionar una página para editar
   const handleSelect = (page: any) => {
     setSelectedPage(page);
     setTitle(page.title);
@@ -53,7 +46,6 @@ export default function AdminPagesManager() {
     setEnabled(page.enabled);
   };
 
-  // Función para limpiar el formulario (modo creación)
   const clearForm = () => {
     setSelectedPage(null);
     setTitle("");
@@ -63,50 +55,37 @@ export default function AdminPagesManager() {
     setError("");
   };
 
-  // Función para manejar el envío del formulario (crear o actualizar)
   const handleSubmit = async (e: Event) => {
     e.preventDefault();
     setLoading(true);
     setError("");
+
     try {
-      const token = localStorage.getItem("token");
-      if (!token) throw new Error("No autenticado");
+      if (!user || !user.email) throw new Error("Usuario no autenticado");
 
       const payload = {
-        title: title(),
         slug: slug(),
-        content: content(),
-        enabled: enabled(),
+        nuevoContenido: content(),
+        email: user.email,
+        pagina: title(),
       };
 
-      let res;
-      if (selectedPage() && selectedPage()._id) {
-        // Modo edición: actualizar la página
-        res = await fetch(`${API_URL}/pages/${selectedPage()._id}`, {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
-      } else {
-        // Modo creación: crear una nueva página
-        res = await fetch(`${API_URL}/pages`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "Authorization": `Bearer ${token}`
-          },
-          body: JSON.stringify(payload)
-        });
-      }
+      const res = await fetch(`${API_URL}/moderacion-pages`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      });
+
       if (!res.ok) {
         const data = await res.json();
-        throw new Error(data.error || "Error al guardar la página");
+        throw new Error(data.error || "Error al enviar propuesta");
       }
-      await fetchPages();
+
+      alert("✅ Propuesta enviada para moderación");
       clearForm();
+      fetchPages();
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -114,7 +93,6 @@ export default function AdminPagesManager() {
     }
   };
 
-  // Función para eliminar una página
   const handleDelete = async (id: string) => {
     try {
       const token = localStorage.getItem("token");
@@ -127,7 +105,6 @@ export default function AdminPagesManager() {
       });
       if (!res.ok) throw new Error("Error al eliminar la página");
       await fetchPages();
-      // Si la página eliminada estaba seleccionada, limpia el formulario
       if (selectedPage() && selectedPage()._id === id) {
         clearForm();
       }
@@ -136,7 +113,6 @@ export default function AdminPagesManager() {
     }
   };
 
-  // Función para habilitar/deshabilitar una página
   const toggleEnabled = async (id: string, nuevoEstado: boolean) => {
     try {
       const token = localStorage.getItem("token");
@@ -150,7 +126,6 @@ export default function AdminPagesManager() {
       });
       if (!res.ok) throw new Error("Error al actualizar el estado de la página");
       await fetchPages();
-      // Si la página seleccionada es la misma, actualiza el estado en el formulario
       if (selectedPage() && selectedPage()._id === id) {
         setEnabled(nuevoEstado);
       }
@@ -164,7 +139,6 @@ export default function AdminPagesManager() {
       <h1 class="text-3xl font-bold mb-6">Administrar Páginas</h1>
       {error() && <p class="text-red-600 mb-4">{error()}</p>}
       <div class="flex flex-col lg:flex-row gap-8">
-        {/* Listado de Páginas */}
         <div class="lg:w-1/2">
           <h2 class="text-xl font-semibold mb-4">Listado de Páginas</h2>
           <ul class="space-y-4">
@@ -196,10 +170,9 @@ export default function AdminPagesManager() {
             Crear Nueva Página
           </button>
         </div>
-        {/* Formulario para Crear/Editar */}
         <div class="lg:w-1/2">
           <h2 class="text-xl font-semibold mb-4">
-            {selectedPage() ? "Editar Página" : "Crear Nueva Página"}
+            {selectedPage() ? "Proponer Edición de Página" : "Proponer Nueva Página"}
           </h2>
           <form onSubmit={handleSubmit} class="space-y-4">
             <div>
@@ -232,23 +205,13 @@ export default function AdminPagesManager() {
                 required
               ></textarea>
             </div>
-            <div class="flex items-center">
-              <input
-                type="checkbox"
-                checked={enabled()}
-                onChange={(e) => setEnabled(e.currentTarget.checked)}
-                id="enabled"
-                class="mr-2"
-              />
-              <label for="enabled" class="font-semibold">Habilitada</label>
-            </div>
             <div class="space-x-4">
               <button
                 type="submit"
                 disabled={loading()}
-                class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition"
+                class="bg-yellow-600 text-white px-4 py-2 rounded hover:bg-yellow-700 transition"
               >
-                {loading() ? "Guardando..." : "Guardar"}
+                {loading() ? "Enviando..." : "Enviar a Moderación"}
               </button>
               <button
                 type="button"

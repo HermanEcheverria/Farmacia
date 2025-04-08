@@ -25,6 +25,10 @@ export default function PortalAdmin() {
           <h2 class="text-2xl font-semibold mb-4">Gestión de Páginas</h2>
           <p class="text-gray-600">Administrar páginas del sitio web</p>
         </A>
+        <A href="/admin/moderacion" class="bg-white p-6 shadow-lg rounded-lg text-center">
+          <h2 class="text-2xl font-semibold mb-4">Moderación</h2>
+          <p class="text-gray-600">Moderacion</p>
+        </A>
       
       </div>
     </div>
