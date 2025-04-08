@@ -72,28 +72,32 @@ export default function AdminUsers() {
   };
 
   return (
-    <div class="p-8">
-      <h1 class="text-2xl font-bold mb-4">Gestión de Usuarios</h1>
-      {error() && <p class="text-red-600">{error()}</p>}
-      <table class="w-full border-collapse border border-gray-300">
-        <thead>
-          <tr class="bg-gray-100">
-            <th class="border p-2">Email</th>
-            <th class="border p-2">Rol</th>
-            <th class="border p-2">Estado</th>
-            <th class="border p-2">Acciones</th>
+    <div class="p-8 bg-[#E9F8FB] min-h-screen">
+      <h1 class="text-3xl font-bold text-[#024059] mb-6 text-center">Gestión de Usuarios</h1>
+
+      {error() && <p class="text-red-600 text-center">{error()}</p>}
+
+      <table class="w-full border border-[#A1C7E0] rounded-xl overflow-hidden shadow-md bg-white">
+        <thead class="bg-[#A1C7E0] text-[#024059]">
+          <tr>
+            <th class="border border-[#A1C7E0] p-3">Email</th>
+            <th class="border border-[#A1C7E0] p-3">Rol</th>
+            <th class="border border-[#A1C7E0] p-3">Estado</th>
+            <th class="border border-[#A1C7E0] p-3">Acciones</th>
           </tr>
         </thead>
         <tbody>
           <For each={users()}>
             {(user) => (
-              <tr>
-                <td class="border p-2">{user.email}</td>
-                <td class="border p-2">{user.role}</td>
-                <td class="border p-2">{user.active ? "Activo" : "Inactivo"}</td>
-                <td class="border p-2">
-                  <button 
-                    class="bg-blue-500 text-white px-2 py-1 rounded"
+              <tr class="hover:bg-[#F0FAFC]">
+                <td class="border border-[#A1C7E0] p-3">{user.email}</td>
+                <td class="border border-[#A1C7E0] p-3">{user.role}</td>
+                <td class="border border-[#A1C7E0] p-3">
+                  {user.active ? "✅ Activo" : "❌ Inactivo"}
+                </td>
+                <td class="border border-[#A1C7E0] p-3">
+                  <button
+                    class="bg-[#0099DD] hover:bg-[#007cb2] text-white px-3 py-1 rounded font-medium transition"
                     onClick={() => openEditModal(user)}
                   >
                     Editar
@@ -107,21 +111,21 @@ export default function AdminUsers() {
 
       {/* Modal para editar usuario */}
       <Show when={editUser()}>
-        <div class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
-          <div class="bg-white p-8 rounded shadow-md w-96">
-            <h2 class="text-xl mb-4">Editar Usuario</h2>
+        <div class="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div class="bg-white p-6 rounded-xl w-96 border border-[#00ABBD] shadow-xl">
+            <h2 class="text-2xl text-[#024059] font-semibold mb-4 text-center">Editar Usuario</h2>
 
-            <label class="block mb-2">Correo Electrónico:</label>
+            <label class="block text-sm text-[#026E81] mb-1">Correo Electrónico:</label>
             <input
               type="email"
-              class="border p-2 mb-4 w-full"
+              class="w-full p-2 border border-[#026E81] rounded mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ABBD]"
               value={newEmail()}
               onInput={(e) => setNewEmail(e.currentTarget.value)}
             />
 
-            <label class="block mb-2">Rol:</label>
+            <label class="block text-sm text-[#026E81] mb-1">Rol:</label>
             <select
-              class="border p-2 mb-4 w-full"
+              class="w-full p-2 border border-[#026E81] rounded mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ABBD]"
               value={newRole()}
               onChange={(e) => setNewRole(e.currentTarget.value)}
             >
@@ -132,26 +136,26 @@ export default function AdminUsers() {
               <option value="sin-registrar">Sin Registrar</option>
             </select>
 
-            <label class="block mb-2">Estado:</label>
-            <div class="flex items-center mb-4">
+            <label class="block text-sm text-[#026E81] mb-1">Estado:</label>
+            <div class="flex items-center gap-2 mb-6">
               <input
                 type="checkbox"
                 checked={newActive()}
                 onChange={(e) => setNewActive(e.currentTarget.checked)}
-                class="mr-2"
+                class="accent-[#04BF8A]"
               />
-              <span>{newActive() ? "Activo" : "Inactivo"}</span>
+              <span>{newActive() ? "✅ Activo" : "❌ Inactivo"}</span>
             </div>
 
-            <div class="flex justify-end space-x-2">
+            <div class="flex justify-end gap-2">
               <button
-                class="bg-green-500 text-white px-4 py-2 rounded"
+                class="bg-[#04BF8A] hover:bg-[#03a577] text-white px-4 py-2 rounded font-medium transition"
                 onClick={() => updateUser(editUser()._id)}
               >
                 Guardar
               </button>
               <button
-                class="bg-red-500 text-white px-4 py-2 rounded"
+                class="bg-[#FF9933] hover:bg-[#e68500] text-white px-4 py-2 rounded font-medium transition"
                 onClick={() => setEditUser(null)}
               >
                 Cancelar
