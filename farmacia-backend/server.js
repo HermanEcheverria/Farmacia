@@ -8,6 +8,7 @@ const medicamentoRoutes = require("./routes/medicamentoRoutes");
 const recetasRoutes = require("./routes/recetasRoutes"); 
 const dashboardRoutes = require("./routes/dashboardRoutes");
 const pageRoutes = require("./routes/pageRoutes");
+const farmaciaRoutes = require("./routes/farmaciaRoutes");
 
 
 dotenv.config();
@@ -30,6 +31,7 @@ app.use("/medicamentos", medicamentoRoutes);
 app.use("/recetas", recetasRoutes);
 app.use("/dashboard", dashboardRoutes);
 app.use("/pages", pageRoutes); 
+app.use("/farmacia", farmaciaRoutes);
 
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);

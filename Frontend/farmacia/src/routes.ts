@@ -15,5 +15,6 @@ export const routes: RouteDefinition[] = [
   { path: "/medicamentos/:id", component: lazy(() => import("./pages/MedicamentoDetalle")) },
   { path: "/dashboard", component: lazy(() => import("./pages/Dashboard")) },
   { path: "/:slug", component: lazy(() => import("./pages/DynamicPage")) },
+  {path: "/solicitudFarmacia", component: lazy(() => import("./pages/SolicitudFarmacia"))},
   { path: "**", component: lazy(() => import("./errors/404")) },
 ];
