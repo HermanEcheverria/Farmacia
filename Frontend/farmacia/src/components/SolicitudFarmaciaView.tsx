@@ -1,7 +1,7 @@
-// src/components/SolicitudFarmaciaView.tsx
 import { Component, createSignal, createResource } from "solid-js";
+import { API_URL } from "../utils/api";
 
-// Define el tipo Aseguradora (ajusta según tu modelo real)
+// Define el tipo Aseguradora
 type Aseguradora = {
   _id: string;
   nombre: string;
@@ -16,7 +16,6 @@ const fetchAseguradoras = async (): Promise<Aseguradora[]> => {
 };
 
 const SolicitudFarmaciaView: Component = () => {
-  // Estados para los campos del formulario
   const [nombre, setNombre] = createSignal<string>("");
   const [direccion, setDireccion] = createSignal<string>("");
   const [telefono, setTelefono] = createSignal<string>("");
@@ -25,7 +24,6 @@ const SolicitudFarmaciaView: Component = () => {
   const [loading, setLoading] = createSignal<boolean>(false);
   const [mensaje, setMensaje] = createSignal<string>("");
 
-  // Cargar aseguradoras mediante createResource
   const [aseguradoras] = createResource(fetchAseguradoras);
 
   const handleSubmit = async (e: Event) => {
@@ -33,20 +31,35 @@ const SolicitudFarmaciaView: Component = () => {
     setLoading(true);
     setMensaje("");
 
+    // Genera un código único para correlacionar la solicitud
+    const codigoSolicitud = Date.now().toString();
+    
+    // Buscar el objeto de la aseguradora seleccionada para extraer su nombre
+    const aseguradoraObj = aseguradoras()?.find(a => a._id === aseguradora());
+    
     const payload = {
       nombre: nombre(),
       direccion: direccion(),
       telefono: telefono(),
-      aseguradora: aseguradora(), 
-      origen: "farmacia"
+      aseguradora: aseguradora(), // Guarda el ID de la aseguradora
+      aseguradoraNombre: aseguradoraObj ? aseguradoraObj.nombre : "",
+      origen: "farmacia",
+      codigoSolicitud // Campo para correlacionar en ambos sistemas
     };
 
     try {
-      const response = await fetch("http://localhost:5000/farmacia/solicitudes", {
+      // Se usa la ruta correcta: en Farmacia se expone en "/farmacia/solicitudes"
+      const response = await fetch(`${API_URL}/farmacia/solicitudes`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload)
       });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(`Error ${response.status}: ${errorText}`);
+      }
+
       const result = await response.json();
       console.log("Respuesta del servidor:", result);
       setMensaje("¡Solicitud enviada exitosamente!");
@@ -98,7 +111,6 @@ const SolicitudFarmaciaView: Component = () => {
             />
           </label>
         </div>
-        {/* Campo para seleccionar la aseguradora */}
         <div>
           <label class="block text-gray-700">
             Aseguradora:

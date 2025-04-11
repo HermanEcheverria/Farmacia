@@ -6,7 +6,7 @@ const axios = require("axios");
 // Importa el modelo de la solicitud de farmacia
 const SolicitudFarmacia = require("../models/SolicitudFarmacia");
 
-// Endpoint para actualizar una solicitud en el sistema de Farmacia
+// Endpoint para actualizar una solicitud en Farmacia por su _id
 router.put("/solicitudes/:id", async (req, res) => {
   try {
     const updatedSolicitud = await SolicitudFarmacia.findByIdAndUpdate(
@@ -26,10 +26,29 @@ router.put("/solicitudes/:id", async (req, res) => {
   }
 });
 
-// Endpoint POST ya existente para crear una solicitud y enviarla a Aseguradora
+// Nuevo endpoint para actualizar una solicitud en Farmacia mediante el código único
+router.put("/solicitudes/codigo/:codigo", async (req, res) => {
+  try {
+    const updatedSolicitud = await SolicitudFarmacia.findOneAndUpdate(
+      { codigoSolicitud: req.params.codigo },
+      req.body,
+      { new: true }
+    );
+    if (!updatedSolicitud) {
+      return res.status(404).json({ error: "Solicitud de farmacia no encontrada" });
+    }
+    res.json(updatedSolicitud);
+  } catch (err) {
+    console.error("Error actualizando solicitud por código en Farmacia:", err);
+    res.status(500).json({ error: "Error al actualizar solicitud", details: err.message });
+  }
+});
+
+// Endpoint POST para crear una solicitud y enviarla a Aseguradora
 router.post("/solicitudes", async (req, res) => {
   try {
-    // Guarda la solicitud localmente en MongoDB
+    // Guarda la solicitud localmente en MongoDB (se espera que req.body incluya todos los datos,
+    // incluido el campo 'codigoSolicitud' generado en el front para correlación)
     const solicitud = new SolicitudFarmacia(req.body);
     const savedSolicitud = await solicitud.save();
     

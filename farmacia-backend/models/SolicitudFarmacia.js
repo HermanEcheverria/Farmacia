@@ -7,6 +7,8 @@ const SolicitudFarmaciaSchema = new Schema({
   direccion: { type: String, required: true },
   telefono: { type: String, required: true },
   aseguradora: { type: String, required: true },
+  origen: { type: String, required: true },
+  codigoSolicitud: { type: String, required: true },
   estado: { type: String, default: "pendiente" },
   createdAt: { type: Date, default: Date.now }
 });
