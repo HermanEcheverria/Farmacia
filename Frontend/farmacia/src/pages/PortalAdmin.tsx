@@ -22,6 +22,11 @@ export default function PortalAdmin() {
             <p class="text-gray-600">Solicitar una receta médica</p>
           </A>
 
+          <A href="/ver-solicitudes" class="bg-white p-6 shadow-md rounded-xl text-center hover:shadow-lg border border-[#A1C7E0] transition">
+            <h2 class="text-2xl font-semibold mb-2 text-[#026873]">Descuentos</h2>
+            <p class="text-gray-600">Aprobacion de solicitudes con descuento</p>
+          </A>
+
           <A href="/dashboard" class="bg-white p-6 shadow-md rounded-xl text-center hover:shadow-lg border border-[#A1C7E0] transition">
             <h2 class="text-2xl font-semibold mb-2 text-[#026873]">Dashboard</h2>
             <p class="text-gray-600">Ver métricas y estadísticas</p>

@@ -19,6 +19,8 @@ export const routes: RouteDefinition[] = [
   { path: "/admin/solicitudFarmacia", component: lazy(() => import("./pages/SolicitudFarmacia")) },
   { path: "/moderacion/draft/:id", component: lazy(() => import("./pages/DraftView")) },
   { path: "/admin/moderacion", component: lazy(() => import("./pages/ModeracionAdminView")) },
+  { path: "/ver-solicitudes", component: lazy(() => import("./components/SolicitudesDescuentoPage")) },
+  
 
   { path: "**", component: lazy(() => import("./errors/404")) },
 ];
