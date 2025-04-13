@@ -34,7 +34,12 @@ const Navbar = () => {
               Buscar
             </A>
           </li>
-         
+          {/* Agregar enlace a Descuentos */}
+          <li>
+            <A href="/discount" class="hover:text-gray-200 transition">
+              Descuentos
+            </A>
+          </li>
 
           {/* Links dinámicos: por ejemplo, si creas nuevas páginas */}
           {pages().map((page) => (

@@ -14,10 +14,11 @@ export const routes: RouteDefinition[] = [
   { path: "/searchMedicamentos", component: lazy(() => import("./pages/SearchMedicamentos")) },
   { path: "/medicamentos/:id", component: lazy(() => import("./pages/MedicamentoDetalle")) },
   { path: "/dashboard", component: lazy(() => import("./pages/Dashboard")) },
+  { path: "/discount", component: lazy(() => import("./pages/DiscountPage")) },
   { path: "/:slug", component: lazy(() => import("./pages/DynamicPage")) },
-  {path: "/admin/solicitudFarmacia", component: lazy(() => import("./pages/SolicitudFarmacia"))},
-  {path: "/moderacion/draft/:id", component: lazy(() => import("./pages/DraftView"))},
-  {path: "/admin/moderacion", component: lazy(() => import("./pages/ModeracionAdminView"))},
+  { path: "/admin/solicitudFarmacia", component: lazy(() => import("./pages/SolicitudFarmacia")) },
+  { path: "/moderacion/draft/:id", component: lazy(() => import("./pages/DraftView")) },
+  { path: "/admin/moderacion", component: lazy(() => import("./pages/ModeracionAdminView")) },
 
   { path: "**", component: lazy(() => import("./errors/404")) },
 ];

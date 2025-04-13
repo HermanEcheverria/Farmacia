@@ -14,6 +14,7 @@ const medicamentoSchema = new mongoose.Schema({
   requiereReceta: { type: Boolean, default: false },
   stock: { type: Number, required: true },
   precio: { type: Number, required: true },
+  descuento: { type: Number, default: 0 },
   createdAt: { type: Date, default: Date.now },
   comentarios: [{ type: mongoose.Schema.Types.ObjectId, ref: "Comentario" }]
 });
