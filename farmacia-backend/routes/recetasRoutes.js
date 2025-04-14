@@ -106,16 +106,15 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
     }
 
     const montoCalculado = medicamentosDisponibles.reduce((acc, m) => acc + m.cantidad * (m.precio_unitario || 0), 0);
-    const clienteId = req.user?._id || null;
 
     let validacionSeguro = null;
     try {
       const seguroRes = await axios.post(`${ASEGURADORA_RECETAS_API_URL}/validar`, {
         idReceta: codigo,
         farmacia: "Farmacia XYZ",
-        monto: montoCalculado,
-        clienteId
+        monto: montoCalculado
       });
+      
       validacionSeguro = seguroRes.data;
     } catch (err) {
       console.warn("⚠️ No se pudo validar con la aseguradora:", err.message);
@@ -211,16 +210,15 @@ router.post("/comprar", verifyToken, async (req, res) => {
     }
 
     let total = medicamentosParaVenta.reduce((sum, m) => sum + m.cantidadAVender * m.precioUnitario, 0);
-    const clienteId = req.user._id;
     let descuento = 0;
 
     try {
       const seguroRes = await axios.post(`${ASEGURADORA_RECETAS_API_URL}/validar`, {
         idReceta: codigo,
         farmacia: "Farmacia XYZ",
-        monto: total,
-        clienteId
+        monto: total
       });
+      
 
       const validacion = seguroRes.data;
       if (validacion.estado === "aprobada") {

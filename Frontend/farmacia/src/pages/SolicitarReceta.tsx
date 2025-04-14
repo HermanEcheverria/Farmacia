@@ -29,6 +29,7 @@ export default function SolicitarReceta() {
       });
 
       const data = await response.json();
+      console.log(data); 
       if (!response.ok) throw new Error(data.error || "Error al solicitar la receta");
 
       setReceta(data);
@@ -61,6 +62,7 @@ export default function SolicitarReceta() {
 
       const responseText = await response.text();
       const data = JSON.parse(responseText);
+      console.log(data); 
       if (!response.ok) throw new Error(data.error || "Error al procesar la compra");
 
       setMensajeCompra(data.mensaje || "Compra procesada exitosamente");
