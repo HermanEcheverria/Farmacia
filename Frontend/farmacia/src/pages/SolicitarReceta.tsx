@@ -55,8 +55,7 @@ export default function SolicitarReceta() {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          codigo: codigoReceta(),
-          tieneAprobacionSeguro: true
+          codigo: codigoReceta()
         })
       });
 
@@ -119,6 +118,15 @@ export default function SolicitarReceta() {
               </li>
             ))}
           </ul>
+
+          {/* Mostrar detalles del seguro y totales */}
+          <div class="mt-4 text-[#024059] space-y-1">
+            <p><strong>Total:</strong> Q{receta().total?.toFixed(2)}</p>
+            <p><strong>Descuento:</strong> Q{receta().descuento?.toFixed(2)} ({receta().infoDescuento})</p>
+            <p><strong>Total Final:</strong> Q{receta().totalFinal?.toFixed(2)}</p>
+            <p><strong>Estado del Seguro:</strong> {receta().estadoSeguro}</p>
+            <p><strong>Motivo:</strong> {receta().mensaje}</p> {/* Agregado */}
+          </div>
 
           {receta().medicamentos.every((m: any) => m.disponible) ? (
             <button
