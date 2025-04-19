@@ -11,7 +11,15 @@ if (!JWT_SECRET) {
   process.exit(1);
 }
 
-// Middleware para verificar si el usuario es administrador
+/**
+ * Middleware para verificar si el usuario es administrador.
+ * 
+ * @function verifyAdmin
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @param {Function} next - Función para pasar al siguiente middleware.
+ * @returns {void}
+ */
 const verifyAdmin = (req, res, next) => {
   const token = req.headers.authorization?.split(" ")[1];
 
@@ -37,9 +45,16 @@ const verifyAdmin = (req, res, next) => {
   }
 };
 
-
-
-// 🔹 Obtener todos los usuarios (solo admins)
+/**
+ * Obtener todos los usuarios (solo accesible para administradores).
+ * 
+ * @name GET /users
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/users", verifyAdmin, async (req, res) => {
   try {
     const users = await User.find().select("-password");
@@ -49,7 +64,16 @@ router.get("/users", verifyAdmin, async (req, res) => {
   }
 });
 
-// 🔹 Activar cuenta, cambiar rol o correo (solo admins)
+/**
+ * Actualizar datos de un usuario (solo accesible para administradores).
+ * 
+ * @name PUT /users/:id
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/users/:id", verifyAdmin, async (req, res) => {
   try {
     const { email, role, active } = req.body;
@@ -86,10 +110,16 @@ router.put("/users/:id", verifyAdmin, async (req, res) => {
   }
 });
 
-
-
-
-// 🔹 Ruta de inicio de sesión (login)
+/**
+ * Iniciar sesión (login).
+ * 
+ * @name POST /login
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/login", async (req, res) => {
   try {
     console.log("🟢 Recibida solicitud de login con datos:", req.body);
@@ -126,7 +156,17 @@ router.post("/login", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor" });
   }
 });
-// 🔹 Ruta para registro de usuarios (signup)
+
+/**
+ * Registrar un nuevo usuario (signup).
+ * 
+ * @name POST /signup
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/signup", async (req, res) => {
   try {
     console.log("🟢 Recibida solicitud de registro con datos:", req.body);
@@ -161,7 +201,5 @@ router.post("/signup", async (req, res) => {
     res.status(500).json({ error: "Error interno del servidor." });
   }
 });
-
-
 
 module.exports = router;
