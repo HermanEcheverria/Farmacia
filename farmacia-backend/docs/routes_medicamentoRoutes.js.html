@@ -1,0 +1,352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>routes/medicamentoRoutes.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading"><a href="global.html">Globals</a></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#connectDB">connectDB</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#verifyAdmin">verifyAdmin</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">routes/medicamentoRoutes.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const express = require("express");
+const mongoose = require("mongoose");
+const Medicamento = require("../models/Medicamento");
+const Comentario = require("../models/Comentario");
+const User = require("../models/User");
+const { verifyToken, verifyAdmin } = require("../utils/authMiddleware");
+const { allowComment } = require("../utils/allowComment");
+
+const router = express.Router();
+
+/**
+ * Obtener todos los medicamentos.
+ * 
+ * @name GET /listar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/listar", async (req, res) => {  
+  try {
+    const medicamentos = await Medicamento.find();
+    res.json(medicamentos);
+  } catch (error) {
+    console.error("❌ Error obteniendo medicamentos:", error);
+    res.status(500).json({ error: "Error obteniendo medicamentos" });
+  }
+});
+
+/**
+ * Crear un nuevo medicamento (Solo Admins).
+ * 
+ * @name POST /crear
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/crear", verifyToken, verifyAdmin, async (req, res) => {  
+  try {
+    console.log("🔍 Recibiendo datos en backend:", req.body);
+
+    // Validar que fotos sea un array de URLs
+    if (!req.body.fotos || !Array.isArray(req.body.fotos)) {
+      return res.status(400).json({ error: "El campo 'fotos' debe ser un array de URLs" });
+    }
+
+    // Crear instancia de medicamento
+    const nuevoMedicamento = new Medicamento(req.body);
+    await nuevoMedicamento.save();
+
+    console.log("✅ Medicamento guardado con imágenes:", nuevoMedicamento);
+    res.status(201).json(nuevoMedicamento);
+  } catch (error) {
+    console.error("❌ Error creando medicamento:", error);
+    res.status(400).json({ error: "Error creando medicamento" });
+  }
+});
+
+/**
+ * Actualizar un medicamento por código (Solo Admins).
+ * 
+ * @name PUT /:codigo
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.put("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    console.log("🔍 Actualizando medicamento con código:", req.params.codigo);
+    
+    // Validar que fotos sea un array de URLs
+    if (req.body.fotos &amp;&amp; !Array.isArray(req.body.fotos)) {
+      return res.status(400).json({ error: "El campo 'fotos' debe ser un array de URLs" });
+    }
+
+    const medicamentoActualizado = await Medicamento.findOneAndUpdate(
+      { codigo: req.params.codigo },
+      req.body,
+      { new: true }
+    );
+
+    if (!medicamentoActualizado) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
+
+    console.log("✅ Medicamento actualizado con imágenes:", medicamentoActualizado);
+    res.json(medicamentoActualizado);
+  } catch (error) {
+    console.error("❌ Error actualizando medicamento:", error);
+    res.status(400).json({ error: "Error actualizando medicamento" });
+  }
+});
+
+/**
+ * Eliminar un medicamento por código (Solo Admins).
+ * 
+ * @name DELETE /:codigo
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.delete("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    console.log("🔍 Eliminando medicamento con código:", req.params.codigo);
+    const medicamentoEliminado = await Medicamento.findOneAndDelete({ codigo: req.params.codigo });
+
+    if (!medicamentoEliminado) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
+
+    console.log("✅ Medicamento eliminado:", medicamentoEliminado);
+    res.json({ message: "Medicamento eliminado" });
+  } catch (error) {
+    console.error("❌ Error eliminando medicamento:", error);
+    res.status(400).json({ error: "Error eliminando medicamento" });
+  }
+});
+
+/**
+ * Buscar medicamentos por filtros.
+ * 
+ * @name GET /buscar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/buscar", async (req, res) => {
+  try {
+    const { nombre, principioActivo, descripcion, categoria } = req.query;
+    const filtros = {};
+
+    if (nombre) filtros.nombre = new RegExp(nombre, "i");
+    if (principioActivo) filtros.principioActivo = new RegExp(principioActivo, "i");
+    if (descripcion) filtros.descripcion = new RegExp(descripcion, "i");
+    if (categoria) filtros.categoria = new RegExp(categoria, "i");
+
+    const medicamentos = await Medicamento.find(filtros);
+    res.json(medicamentos);
+  } catch (error) {
+    console.error("❌ Error en búsqueda de medicamentos:", error);
+    res.status(500).json({ error: "Error al buscar medicamentos" });
+  }
+});
+
+/**
+ * Obtener un medicamento por ID.
+ * 
+ * @name GET /:id
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/:id", async (req, res) => {
+  try {
+    console.log("🔍 Buscando medicamento con ID:", req.params.id);
+    const medicamento = await Medicamento.findById(req.params.id).lean();
+    if (!medicamento) {
+      return res.status(404).json({ error: "Medicamento no encontrado" });
+    }
+    res.json(medicamento);
+  } catch (error) {
+    console.error("❌ Error obteniendo medicamento:", error);
+    res.status(500).json({ error: "Error al obtener medicamento" });
+  }
+});
+
+/**
+ * Obtener la jerarquía de comentarios para un medicamento.
+ * 
+ * @name GET /:id/comentarios
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/:id/comentarios", async (req, res) => {
+  try {
+    const medicamentoId = req.params.id;
+    // Se buscan todos los comentarios asociados al medicamento
+    const comentarios = await Comentario.find({ medicamento: medicamentoId })
+      .populate("user", "email") // Poblar el campo "user" con el email
+      .lean();
+
+    // Función recursiva para construir el árbol de comentarios
+    const buildTree = (comentarios, parentId = null) => {
+      return comentarios
+        .filter((comentario) =>
+          parentId === null
+            ? comentario.parentId === null
+            : comentario.parentId &amp;&amp;
+              comentario.parentId.toString() === parentId.toString()
+        )
+        .map((comentario) => ({
+          ...comentario,
+          respuestas: buildTree(comentarios, comentario._id),
+        }));
+    };
+
+    const tree = buildTree(comentarios);
+    res.json(tree);
+  } catch (error) {
+    console.error("❌ Error obteniendo comentarios anidados:", error);
+    res.status(500).json({ error: "Error al obtener comentarios anidados" });
+  }
+});
+
+/**
+ * Agregar un comentario o respuesta (Solo para usuarios permitidos).
+ * 
+ * @name POST /:id/comentarios
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/:id/comentarios", verifyToken, allowComment, async (req, res) => {
+  try {
+    const { texto, respuestaA } = req.body;
+    const medicamentoId = req.params.id;
+
+    if (!texto) {
+      return res.status(400).json({ error: "El comentario no puede estar vacío" });
+    }
+
+    const nuevoComentario = new Comentario({
+      user: req.user.id,           // Se asigna el usuario autenticado (desde verifyToken)
+      medicamento: medicamentoId,
+      texto,
+      parentId: respuestaA || null, // Si es respuesta, se asigna; si no, null (comentario raíz)
+    });
+
+    await nuevoComentario.save();
+    res.status(201).json(nuevoComentario);
+  } catch (error) {
+    console.error("❌ Error agregando comentario:", error);
+    res.status(500).json({ error: "Error agregando comentario" });
+  }
+});
+
+/**
+ * Procesar la compra de un medicamento.
+ * 
+ * @name POST /:id/comprar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/:id/comprar", async (req, res) => {
+  try {
+    const { cantidad } = req.body;
+    const medicamentoId = req.params.id;
+
+    if (!cantidad || cantidad &lt;= 0) {
+      return res.status(400).json({ error: "La cantidad debe ser mayor a 0." });
+    }
+
+    const medicamento = await Medicamento.findById(medicamentoId);
+
+    if (!medicamento) {
+      return res.status(404).json({ error: "Medicamento no encontrado." });
+    }
+
+    if (cantidad > medicamento.stock) {
+      return res.status(400).json({ error: "La cantidad solicitada excede el stock disponible." });
+    }
+
+    // Deduct the quantity from stock
+    medicamento.stock -= cantidad;
+    await medicamento.save();
+
+    res.json({ message: "Compra procesada con éxito.", medicamento });
+  } catch (error) {
+    console.error("❌ Error procesando la compra:", error);
+    res.status(500).json({ error: "Error procesando la compra." });
+  }
+});
+
+module.exports = router;</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Apr 19 2025 16:53:22 GMT-0600 (Central Standard Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>

@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>routes/dashboardRoutes.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading"><a href="global.html">Globals</a></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#connectDB">connectDB</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#verifyAdmin">verifyAdmin</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">routes/dashboardRoutes.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const express = require('express');
+const router = express.Router();
+const Venta = require('../models/Venta');
+const { verifyToken, verifyAdmin } = require('../utils/authMiddleware');
+
+/**
+ * Obtener las 10 categorías de medicamentos más vendidos con su total y porcentaje.
+ * 
+ * @name GET /dashboard/top-categories
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get('/top-categories', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    // Desglosamos cada medicamento vendido y relacionamos con la colección "medicamentos" para obtener la categoría.
+    const topCategories = await Venta.aggregate([
+      { $unwind: "$medicamentos" },
+      {
+        $lookup: {
+          from: "medicamentos",              
+          localField: "medicamentos.medicamentoId",
+          foreignField: "_id",
+          as: "medData"
+        }
+      },
+      { $unwind: "$medData" },
+      {
+        $group: {
+          _id: "$medData.categoria",
+          totalVentas: { $sum: "$medicamentos.cantidad" }
+        }
+      },
+      { $sort: { totalVentas: -1 } },
+      { $limit: 10 }
+    ]);
+
+    // Obtener el total de unidades vendidas en todas las ventas
+    const overallSales = await Venta.aggregate([
+      { $unwind: "$medicamentos" },
+      {
+        $group: {
+          _id: null,
+          total: { $sum: "$medicamentos.cantidad" }
+        }
+      }
+    ]);
+    const totalOverall = overallSales[0] ? overallSales[0].total : 0;
+
+    // Calcular el porcentaje para cada categoría
+    const categoriesWithPercentage = topCategories.map(cat => ({
+      categoria: cat._id,
+      totalVentas: cat.totalVentas,
+      porcentaje: totalOverall > 0 ? ((cat.totalVentas / totalOverall) * 100).toFixed(2) : 0
+    }));
+
+    res.json({ categories: categoriesWithPercentage });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener los datos del dashboard" });
+  }
+});
+
+/**
+ * Obtener la evolución de ventas mensuales sumando el monto total vendido por mes.
+ * 
+ * @name GET /dashboard/evolucion-ventas
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get('/evolucion-ventas', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const ventasMensuales = await Venta.aggregate([
+      {
+        $group: {
+          _id: { $dateToString: { format: "%Y-%m", date: "$fechaVenta" } },
+          totalVentas: { $sum: "$montoTotal" }
+        }
+      },
+      { $sort: { _id: 1 } }
+    ]);
+    res.json({ ventasMensuales });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener la evolución de ventas" });
+  }
+});
+
+/**
+ * Obtener los 10 medicamentos más vendidos (por nombre) con su cantidad total y porcentaje.
+ * 
+ * @name GET /dashboard/top-medicamentos
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get('/top-medicamentos', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const topMedicamentos = await Venta.aggregate([
+      { $unwind: "$medicamentos" },
+      {
+        $lookup: {
+          from: "medicamentos",
+          localField: "medicamentos.medicamentoId",
+          foreignField: "_id",
+          as: "medData"
+        }
+      },
+      { $unwind: "$medData" },
+      {
+        $group: {
+          _id: "$medData.nombre",
+          totalVentas: { $sum: "$medicamentos.cantidad" }
+        }
+      },
+      { $sort: { totalVentas: -1 } },
+      { $limit: 10 }
+    ]);
+    
+    // Calcular el total de unidades vendidas para obtener el porcentaje
+    const overall = await Venta.aggregate([
+      { $unwind: "$medicamentos" },
+      { $group: { _id: null, total: { $sum: "$medicamentos.cantidad" } } }
+    ]);
+    const totalOverall = overall[0] ? overall[0].total : 0;
+    const medicamentosWithPercentage = topMedicamentos.map(med => ({
+      medicamento: med._id,
+      totalVentas: med.totalVentas,
+      porcentaje: totalOverall > 0 ? ((med.totalVentas / totalOverall) * 100).toFixed(2) : 0
+    }));
+    res.json({ medicamentos: medicamentosWithPercentage });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({ error: "Error al obtener top medicamentos" });
+  }
+});
+
+module.exports = router;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Apr 19 2025 16:53:22 GMT-0600 (Central Standard Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>

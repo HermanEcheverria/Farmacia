@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>routes/authRoutes.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading"><a href="global.html">Globals</a></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#connectDB">connectDB</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#verifyAdmin">verifyAdmin</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">routes/authRoutes.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>require("dotenv").config();
+const express = require("express");
+const router = express.Router();
+const bcrypt = require("bcrypt");
+const jwt = require("jsonwebtoken");
+const User = require("../models/User");
+
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  console.error("❌ ERROR: `JWT_SECRET` no está definido en el .env");
+  process.exit(1);
+}
+
+/**
+ * Middleware para verificar si el usuario es administrador.
+ * 
+ * @function verifyAdmin
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @param {Function} next - Función para pasar al siguiente middleware.
+ * @returns {void}
+ */
+const verifyAdmin = (req, res, next) => {
+  const token = req.headers.authorization?.split(" ")[1];
+
+  if (!token) {
+    console.log("❌ No se recibió token en la solicitud.");
+    return res.status(401).json({ error: "No hay token, acceso denegado" });
+  }
+
+  try {
+    console.log("🔍 Token recibido en backend:", token);
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("🔍 Token decodificado en backend:", decoded);
+
+    if (!decoded.role || decoded.role !== "admin") {
+      return res.status(403).json({ error: "Acceso denegado, no eres admin" });
+    }
+
+    req.user = decoded;
+    next();
+  } catch (error) {
+    console.error("❌ Error verificando token en backend:", error.message);
+    return res.status(401).json({ error: "Token inválido" });
+  }
+};
+
+/**
+ * Obtener todos los usuarios (solo accesible para administradores).
+ * 
+ * @name GET /users
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/users", verifyAdmin, async (req, res) => {
+  try {
+    const users = await User.find().select("-password");
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: "Error obteniendo usuarios" });
+  }
+});
+
+/**
+ * Actualizar datos de un usuario (solo accesible para administradores).
+ * 
+ * @name PUT /users/:id
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.put("/users/:id", verifyAdmin, async (req, res) => {
+  try {
+    const { email, role, active } = req.body;
+
+    // Construir el objeto de actualización dinámicamente
+    const updateData = {};
+
+    if (email) {
+      // Validar que el email no se repita
+      const existingUser = await User.findOne({ email });
+      if (existingUser &amp;&amp; existingUser._id.toString() !== req.params.id) {
+        return res.status(400).json({ error: "El correo ya está en uso por otro usuario." });
+      }
+      updateData.email = email;
+    }
+    
+    if (role) updateData.role = role;
+    if (typeof active === "boolean") updateData.active = active;
+
+    // Verificar que al menos un campo se esté actualizando
+    if (Object.keys(updateData).length === 0) {
+      return res.status(400).json({ error: "No se proporcionaron datos válidos para actualizar." });
+    }
+
+    // Actualizar el usuario
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    if (!updatedUser) return res.status(404).json({ error: "Usuario no encontrado" });
+
+    res.json({ message: "Usuario actualizado", user: updatedUser });
+  } catch (error) {
+    console.error("❌ Error actualizando usuario:", error);
+    res.status(500).json({ error: "Error actualizando usuario" });
+  }
+});
+
+/**
+ * Iniciar sesión (login).
+ * 
+ * @name POST /login
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/login", async (req, res) => {
+  try {
+    console.log("🟢 Recibida solicitud de login con datos:", req.body);
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "Email y password son obligatorios" });
+    }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(400).json({ error: "Usuario no encontrado" });
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+    if (!passwordMatch) {
+      return res.status(400).json({ error: "Contraseña incorrecta" });
+    }
+
+    if (!user.active) {
+      return res.status(403).json({ error: "La cuenta no está activada. Contacta a un administrador." });
+    }
+
+    // ✅ Generar token JWT
+    const token = jwt.sign(
+      { id: user._id, email: user.email, role: user.role },
+      JWT_SECRET,
+      { expiresIn: "7d" }
+    );
+
+    res.json({ message: "Inicio de sesión exitoso", token, role: user.role });
+  } catch (error) {
+    console.error("❌ Error en /login:", error);
+    res.status(500).json({ error: "Error interno del servidor" });
+  }
+});
+
+/**
+ * Registrar un nuevo usuario (signup).
+ * 
+ * @name POST /signup
+ * @function
+ * @memberof module:routes/authRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/signup", async (req, res) => {
+  try {
+    console.log("🟢 Recibida solicitud de registro con datos:", req.body);
+    const { email, password } = req.body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: "El correo y la contraseña son requeridos." });
+    }
+
+    // Verificar si el usuario ya existe
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(400).json({ error: "El usuario ya está registrado." });
+    }
+
+    // Hashear la contraseña
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Crear un nuevo usuario en la base de datos
+    const newUser = new User({
+      email,
+      password: hashedPassword,
+      role: "sin-registrar",  // Por defecto, se asigna el rol 'user'
+      active: false  // Por defecto, el usuario está inactivo hasta que un admin lo active
+    });
+
+    await newUser.save();
+
+    res.json({ message: "Usuario registrado correctamente. Esperando activación por un administrador." });
+  } catch (error) {
+    console.error("❌ Error en /signup:", error);
+    res.status(500).json({ error: "Error interno del servidor." });
+  }
+});
+
+module.exports = router;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Apr 19 2025 16:53:22 GMT-0600 (Central Standard Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>

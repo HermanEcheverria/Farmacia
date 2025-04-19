@@ -1,0 +1,14 @@
+{
+    "source": {
+      "include": ["server.js", "models", "routes", "config"],
+      "includePattern": ".js$",
+      "exclude": ["node_modules"],
+      "recurse": true
+    },
+    "opts": {
+      "destination": "./docs",
+      "template": "node_modules/minami",
+      "encoding": "utf8"
+    }
+  }
+  

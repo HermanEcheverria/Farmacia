@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>routes/pageRoutes.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading"><a href="global.html">Globals</a></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#connectDB">connectDB</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#verifyAdmin">verifyAdmin</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">routes/pageRoutes.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>const express = require("express");
+const router = express.Router();
+const Page = require("../models/Page");
+const { verifyToken, verifyAdmin } = require("../utils/authMiddleware");
+
+/**
+ * Obtener todas las páginas para administración (solo Admin).
+ * 
+ * @name GET /admin
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/admin", verifyToken, verifyAdmin, async (req, res) => {
+    try {
+      const pages = await Page.find().lean();
+      res.json(pages);
+    } catch (error) {
+      console.error("Error al obtener páginas para administración:", error);
+      res.status(500).json({ error: "Error al obtener páginas" });
+    }
+  });
+
+/**
+ * Obtener todas las páginas habilitadas (por ejemplo, para navegación).
+ * 
+ * @name GET /
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/", async (req, res) => {
+  try {
+    // Puedes filtrar por "enabled = true" si solo quieres mostrar las activas
+    const pages = await Page.find({ enabled: true }).lean();
+    res.json(pages);
+  } catch (error) {
+    console.error("Error al obtener páginas:", error);
+    res.status(500).json({ error: "Error al obtener páginas" });
+  }
+});
+
+/**
+ * Obtener una página por slug.
+ * 
+ * @name GET /:slug
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.get("/:slug", async (req, res) => {
+  try {
+    const page = await Page.findOne({ slug: req.params.slug, enabled: true }).lean();
+    if (!page) {
+      return res.status(404).json({ error: "Página no encontrada o deshabilitada" });
+    }
+    res.json(page);
+  } catch (error) {
+    console.error("Error al obtener página:", error);
+    res.status(500).json({ error: "Error al obtener la página" });
+  }
+});
+
+/**
+ * Crear una nueva página (solo Admin).
+ * 
+ * @name POST /
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const newPage = new Page(req.body);
+    await newPage.save();
+    res.status(201).json(newPage);
+  } catch (error) {
+    console.error("Error al crear página:", error);
+    res.status(400).json({ error: "Error al crear página" });
+  }
+});
+
+/**
+ * Actualizar una página por ID (solo Admin).
+ * 
+ * @name PUT /:id
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const updated = await Page.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    if (!updated) {
+      return res.status(404).json({ error: "Página no encontrada" });
+    }
+    res.json(updated);
+  } catch (error) {
+    console.error("Error al actualizar página:", error);
+    res.status(400).json({ error: "Error al actualizar página" });
+  }
+});
+
+/**
+ * Eliminar (o deshabilitar) una página por ID (solo Admin).
+ * 
+ * @name DELETE /:id
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.delete("/:id", verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    // Opción 1: Eliminar físicamente la página
+    // const deleted = await Page.findByIdAndDelete(req.params.id);
+
+    // Opción 2: Solo deshabilitar
+    const deleted = await Page.findByIdAndUpdate(req.params.id, { enabled: false }, { new: true });
+    if (!deleted) {
+      return res.status(404).json({ error: "Página no encontrada" });
+    }
+    res.json({ message: "Página deshabilitada/eliminada", page: deleted });
+  } catch (error) {
+    console.error("Error al eliminar página:", error);
+    res.status(400).json({ error: "Error al eliminar página" });
+  }
+});
+
+module.exports = router;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Apr 19 2025 16:53:22 GMT-0600 (Central Standard Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>

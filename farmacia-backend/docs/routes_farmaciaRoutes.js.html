@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>routes/farmaciaRoutes.js - Documentation</title>
+
+    <script src="scripts/prettify/prettify.js"></script>
+    <script src="scripts/prettify/lang-css.js"></script>
+    <!--[if lt IE 9]>
+      <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link type="text/css" rel="stylesheet" href="https://code.ionicframework.com/ionicons/2.0.1/css/ionicons.min.css">
+    <link type="text/css" rel="stylesheet" href="styles/prettify-tomorrow.css">
+    <link type="text/css" rel="stylesheet" href="styles/jsdoc-default.css">
+</head>
+<body>
+
+<input type="checkbox" id="nav-trigger" class="nav-trigger" />
+<label for="nav-trigger" class="navicon-button x">
+  <div class="navicon"></div>
+</label>
+
+<label for="nav-trigger" class="overlay"></label>
+
+<nav>
+    <li class="nav-link nav-home-link"><a href="index.html">Home</a></li><li class="nav-heading"><a href="global.html">Globals</a></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#connectDB">connectDB</a></span></li><li class="nav-item"><span class="nav-item-type type-function">F</span><span class="nav-item-name"><a href="global.html#verifyAdmin">verifyAdmin</a></span></li>
+</nav>
+
+<div id="main">
+    
+    <h1 class="page-title">routes/farmaciaRoutes.js</h1>
+    
+
+    
+
+
+
+    
+    <section>
+        <article>
+            <pre class="prettyprint source linenums"><code>// routes/farmaciaRoutes.js
+const express = require("express");
+const router = express.Router();
+const axios = require("axios");
+
+// Importa el modelo de la solicitud de farmacia
+const SolicitudFarmacia = require("../models/SolicitudFarmacia");
+
+/**
+ * Actualizar una solicitud en Farmacia por su ID.
+ * 
+ * @name PUT /solicitudes/:id
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.put("/solicitudes/:id", async (req, res) => {
+  try {
+    const updatedSolicitud = await SolicitudFarmacia.findByIdAndUpdate(
+      req.params.id,
+      req.body,
+      { new: true }
+    );
+
+    if (!updatedSolicitud) {
+      return res.status(404).json({ error: "Solicitud no encontrada" });
+    }
+
+    res.json(updatedSolicitud);
+  } catch (err) {
+    console.error("Error actualizando solicitud en Farmacia:", err);
+    res.status(500).json({ error: "Error actualizando solicitud", details: err.message });
+  }
+});
+
+/**
+ * Actualizar una solicitud en Farmacia mediante el código único.
+ * 
+ * @name PUT /solicitudes/codigo/:codigo
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.put("/solicitudes/codigo/:codigo", async (req, res) => {
+  try {
+    const updatedSolicitud = await SolicitudFarmacia.findOneAndUpdate(
+      { codigoSolicitud: req.params.codigo },
+      req.body,
+      { new: true }
+    );
+    if (!updatedSolicitud) {
+      return res.status(404).json({ error: "Solicitud de farmacia no encontrada" });
+    }
+    res.json(updatedSolicitud);
+  } catch (err) {
+    console.error("Error actualizando solicitud por código en Farmacia:", err);
+    res.status(500).json({ error: "Error al actualizar solicitud", details: err.message });
+  }
+});
+
+/**
+ * Crear una solicitud y enviarla a Aseguradora.
+ * 
+ * @name POST /solicitudes
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
+router.post("/solicitudes", async (req, res) => {
+  try {
+    // Guarda la solicitud localmente en MongoDB (se espera que req.body incluya todos los datos,
+    // incluido el campo 'codigoSolicitud' generado en el front para correlación)
+    const solicitud = new SolicitudFarmacia(req.body);
+    const savedSolicitud = await solicitud.save();
+    
+    // Agrega el campo "origen" para identificar que proviene de Farmacia
+    const payload = {
+      ...req.body,
+      origen: "farmacia"
+    };
+    
+    // Envía la solicitud al endpoint de la Aseguradora
+    const urlAseguradora = process.env.ASEGURADORA_API_URL || "http://localhost:5001/api/solicitudes";
+    const respuestaAseguradora = await axios.post(urlAseguradora, payload);
+    
+    // Devuelve la respuesta combinada
+    res.status(201).json({
+      local: savedSolicitud,
+      aseguradora: respuestaAseguradora.data
+    });
+  } catch (error) {
+    console.error("Error creando y enviando solicitud:", error);
+    res.status(500).json({ message: "Error al procesar la solicitud", error });
+  }
+});
+
+module.exports = router;
+</code></pre>
+        </article>
+    </section>
+
+
+
+
+</div>
+
+<br class="clear">
+
+<footer>
+    Generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 4.0.4</a> on Sat Apr 19 2025 16:53:22 GMT-0600 (Central Standard Time) using the Minami theme.
+</footer>
+
+<script>prettyPrint();</script>
+<script src="scripts/linenumber.js"></script>
+</body>
+</html>
