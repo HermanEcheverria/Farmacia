@@ -1,3 +1,9 @@
+/**
+ * @file server.js
+ * @description Configuración principal del servidor para la aplicación de farmacia.
+ * Incluye configuración de middleware, conexión a MongoDB y registro de rutas.
+ */
+
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
@@ -17,16 +23,25 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+/**
+ * Middleware para habilitar CORS y parsear JSON/URL-encoded.
+ */
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+/**
+ * Conexión a la base de datos MongoDB.
+ */
 mongoose.connect(process.env.MONGO_URI || "mongodb://CruzVerde:Unis@137.184.71.127:27018/farmacia?authSource=admin", {
   useNewUrlParser: true,
   useUnifiedTopology: true
 }).then(() => console.log("✅ Conectado a MongoDB"))
   .catch(err => console.error("❌ Error conectando a MongoDB:", err));
 
+/**
+ * Registro de rutas de la aplicación.
+ */
 app.use("/auth", authRoutes);
 app.use("/medicamentos", medicamentoRoutes);
 app.use("/recetas", recetasRoutes);
@@ -36,6 +51,9 @@ app.use("/farmacia", farmaciaRoutes);
 app.use("/moderacion-pages", moderacionRoutes);
 app.use("/discount", discountRoutes);
 
+/**
+ * Inicia el servidor en el puerto especificado.
+ */
 app.listen(PORT, () => {
   console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
   

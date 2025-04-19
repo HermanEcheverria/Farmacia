@@ -8,7 +8,16 @@ const { allowComment } = require("../utils/allowComment");
 
 const router = express.Router();
 
-// 🔹 Obtener todos los medicamentos
+/**
+ * Obtener todos los medicamentos.
+ * 
+ * @name GET /listar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/listar", async (req, res) => {  
   try {
     const medicamentos = await Medicamento.find();
@@ -19,7 +28,16 @@ router.get("/listar", async (req, res) => {
   }
 });
 
-// 🔹 Crear un nuevo medicamento (Solo Admins)
+/**
+ * Crear un nuevo medicamento (Solo Admins).
+ * 
+ * @name POST /crear
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/crear", verifyToken, verifyAdmin, async (req, res) => {  
   try {
     console.log("🔍 Recibiendo datos en backend:", req.body);
@@ -41,7 +59,16 @@ router.post("/crear", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// 🔹 Actualizar un medicamento por código (Solo Admins)
+/**
+ * Actualizar un medicamento por código (Solo Admins).
+ * 
+ * @name PUT /:codigo
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   try {
     console.log("🔍 Actualizando medicamento con código:", req.params.codigo);
@@ -69,7 +96,16 @@ router.put("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// 🔹 Eliminar un medicamento por código (Solo Admins)
+/**
+ * Eliminar un medicamento por código (Solo Admins).
+ * 
+ * @name DELETE /:codigo
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.delete("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   try {
     console.log("🔍 Eliminando medicamento con código:", req.params.codigo);
@@ -87,6 +123,16 @@ router.delete("/:codigo", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
+/**
+ * Buscar medicamentos por filtros.
+ * 
+ * @name GET /buscar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/buscar", async (req, res) => {
   try {
     const { nombre, principioActivo, descripcion, categoria } = req.query;
@@ -105,6 +151,16 @@ router.get("/buscar", async (req, res) => {
   }
 });
 
+/**
+ * Obtener un medicamento por ID.
+ * 
+ * @name GET /:id
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/:id", async (req, res) => {
   try {
     console.log("🔍 Buscando medicamento con ID:", req.params.id);
@@ -119,7 +175,16 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 🔹 Obtener la jerarquía de comentarios para un medicamento
+/**
+ * Obtener la jerarquía de comentarios para un medicamento.
+ * 
+ * @name GET /:id/comentarios
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/:id/comentarios", async (req, res) => {
   try {
     const medicamentoId = req.params.id;
@@ -151,7 +216,16 @@ router.get("/:id/comentarios", async (req, res) => {
   }
 });
 
-// 🔹 Agregar un comentario o respuesta (Solo para usuarios permitidos)
+/**
+ * Agregar un comentario o respuesta (Solo para usuarios permitidos).
+ * 
+ * @name POST /:id/comentarios
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/:id/comentarios", verifyToken, allowComment, async (req, res) => {
   try {
     const { texto, respuestaA } = req.body;
@@ -176,7 +250,16 @@ router.post("/:id/comentarios", verifyToken, allowComment, async (req, res) => {
   }
 });
 
-// 🔹 Procesar la compra de un medicamento
+/**
+ * Procesar la compra de un medicamento.
+ * 
+ * @name POST /:id/comprar
+ * @function
+ * @memberof module:routes/medicamentoRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/:id/comprar", async (req, res) => {
   try {
     const { cantidad } = req.body;

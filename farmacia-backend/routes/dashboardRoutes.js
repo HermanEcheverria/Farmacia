@@ -4,8 +4,14 @@ const Venta = require('../models/Venta');
 const { verifyToken, verifyAdmin } = require('../utils/authMiddleware');
 
 /**
- * Endpoint: GET /dashboard/top-categories
- * Descripción: Retorna las 10 categorías de medicamentos más vendidos con su total y porcentaje.
+ * Obtener las 10 categorías de medicamentos más vendidos con su total y porcentaje.
+ * 
+ * @name GET /dashboard/top-categories
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
  */
 router.get('/top-categories', verifyToken, verifyAdmin, async (req, res) => {
   try {
@@ -58,8 +64,14 @@ router.get('/top-categories', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 /**
- * Endpoint: GET /dashboard/evolucion-ventas
- * Descripción: Retorna la evolución de ventas mensuales sumando el monto total vendido por mes.
+ * Obtener la evolución de ventas mensuales sumando el monto total vendido por mes.
+ * 
+ * @name GET /dashboard/evolucion-ventas
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
  */
 router.get('/evolucion-ventas', verifyToken, verifyAdmin, async (req, res) => {
   try {
@@ -80,8 +92,14 @@ router.get('/evolucion-ventas', verifyToken, verifyAdmin, async (req, res) => {
 });
 
 /**
- * Endpoint: GET /dashboard/top-medicamentos
- * Descripción: Retorna los 10 medicamentos más vendidos (por nombre) con su cantidad total y porcentaje.
+ * Obtener los 10 medicamentos más vendidos (por nombre) con su cantidad total y porcentaje.
+ * 
+ * @name GET /dashboard/top-medicamentos
+ * @function
+ * @memberof module:routes/dashboardRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
  */
 router.get('/top-medicamentos', verifyToken, verifyAdmin, async (req, res) => {
   try {

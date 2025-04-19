@@ -4,7 +4,16 @@ const Medicamento = require("../models/Medicamento");
 // ... middlewares de autenticación y autorización si es necesario ...
 const router = express.Router();
 
-// Endpoint para solicitar un descuento en un medicamento (por Farmacia)
+/**
+ * Solicitar un descuento en un medicamento (por Farmacia).
+ * 
+ * @name POST /solicitar
+ * @function
+ * @memberof module:routes/discountRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/solicitar", async (req, res) => {
   try {
     const { medicamentoId, farmacia, porcentajeDescuento } = req.body;
@@ -28,7 +37,16 @@ router.post("/solicitar", async (req, res) => {
   }
 });
 
-// Endpoint para listar solicitudes pendientes (para el sistema de Aseguradora)
+/**
+ * Listar solicitudes de descuento (pendientes, aprobadas o rechazadas).
+ * 
+ * @name GET /listar
+ * @function
+ * @memberof module:routes/discountRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/listar", async (req, res) => {
     try {
       const estado = req.query.estado; // puede ser "pendiente", "aprobado", "rechazado", o no enviar para todas
@@ -44,7 +62,16 @@ router.get("/listar", async (req, res) => {
   });
   
 
-// Endpoint para procesar (aprobar o rechazar) una solicitud
+/**
+ * Procesar una solicitud de descuento (aprobar o rechazar).
+ * 
+ * @name POST /procesar/:id
+ * @function
+ * @memberof module:routes/discountRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/procesar/:id", async (req, res) => {
   try {
     const { aprobar, nuevoDescuento } = req.body;

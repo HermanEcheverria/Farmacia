@@ -6,7 +6,16 @@ const axios = require("axios");
 // Importa el modelo de la solicitud de farmacia
 const SolicitudFarmacia = require("../models/SolicitudFarmacia");
 
-// Endpoint para actualizar una solicitud en Farmacia por su _id
+/**
+ * Actualizar una solicitud en Farmacia por su ID.
+ * 
+ * @name PUT /solicitudes/:id
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/solicitudes/:id", async (req, res) => {
   try {
     const updatedSolicitud = await SolicitudFarmacia.findByIdAndUpdate(
@@ -26,7 +35,16 @@ router.put("/solicitudes/:id", async (req, res) => {
   }
 });
 
-// Nuevo endpoint para actualizar una solicitud en Farmacia mediante el código único
+/**
+ * Actualizar una solicitud en Farmacia mediante el código único.
+ * 
+ * @name PUT /solicitudes/codigo/:codigo
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/solicitudes/codigo/:codigo", async (req, res) => {
   try {
     const updatedSolicitud = await SolicitudFarmacia.findOneAndUpdate(
@@ -44,7 +62,16 @@ router.put("/solicitudes/codigo/:codigo", async (req, res) => {
   }
 });
 
-// Endpoint POST para crear una solicitud y enviarla a Aseguradora
+/**
+ * Crear una solicitud y enviarla a Aseguradora.
+ * 
+ * @name POST /solicitudes
+ * @function
+ * @memberof module:routes/farmaciaRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/solicitudes", async (req, res) => {
   try {
     // Guarda la solicitud localmente en MongoDB (se espera que req.body incluya todos los datos,

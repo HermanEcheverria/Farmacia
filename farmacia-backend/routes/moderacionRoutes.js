@@ -3,7 +3,16 @@ const router = express.Router();
 const ModeracionPage = require("../models/Moderacion");
 const Page = require("../models/Page");
 
-// 1. Crear propuesta
+/**
+ * Crear una propuesta de moderación.
+ * 
+ * @name POST /
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/", async (req, res) => {
   try {
     const propuesta = new ModeracionPage(req.body);
@@ -14,7 +23,16 @@ router.post("/", async (req, res) => {
   }
 });
 
-// 2. Listar propuestas por estado
+/**
+ * Listar propuestas por estado.
+ * 
+ * @name GET /estado/:estado
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/estado/:estado", async (req, res) => {
   try {
     const propuestas = await ModeracionPage.find({ estado: req.params.estado });
@@ -24,7 +42,16 @@ router.get("/estado/:estado", async (req, res) => {
   }
 });
 
-// 3. Obtener una propuesta por ID
+/**
+ * Obtener una propuesta por ID.
+ * 
+ * @name GET /:id
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/:id", async (req, res) => {
   try {
     const propuesta = await ModeracionPage.findById(req.params.id);
@@ -35,7 +62,16 @@ router.get("/:id", async (req, res) => {
   }
 });
 
-// 4. Aprobar propuesta y aplicar a la página original
+/**
+ * Aprobar una propuesta y aplicarla a la página original.
+ * 
+ * @name PUT /aprobar/:id
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/aprobar/:id", async (req, res) => {
     try {
       const propuesta = await ModeracionPage.findById(req.params.id);
@@ -66,8 +102,16 @@ router.put("/aprobar/:id", async (req, res) => {
     }
   });
 
-// 5. Rechazar propuesta y enviar correo con comentario
-// Rechazar propuesta
+/**
+ * Rechazar una propuesta con un comentario opcional.
+ * 
+ * @name PUT /rechazar/:id
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/rechazar/:id", async (req, res) => {
     try {
       const { comentarioRechazo } = req.body;
@@ -93,7 +137,16 @@ router.put("/rechazar/:id", async (req, res) => {
   });
   
 
-// 6. Reenviar propuesta corregida
+/**
+ * Reenviar una propuesta corregida.
+ * 
+ * @name PUT /reenviar/:id
+ * @function
+ * @memberof module:routes/moderacionRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/reenviar/:id", async (req, res) => {
   try {
     const propuesta = await ModeracionPage.findById(req.params.id);

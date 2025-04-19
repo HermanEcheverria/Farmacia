@@ -4,7 +4,16 @@ const router = express.Router();
 const Layout = require("../models/Layout");
 const LayoutDraft = require("../models/LayoutDraft");
 
-// 1. Obtener el layout publicado
+/**
+ * Obtener el layout publicado.
+ * 
+ * @name GET /
+ * @function
+ * @memberof module:routes/layoutRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/", async (req, res) => {
   try {
     const layout = await Layout.findOne({});
@@ -21,8 +30,16 @@ router.get("/", async (req, res) => {
   }
 });
 
-// 2. Crear un borrador de layout (cambios propuestos por el usuario)
-// Se asume que req.body contiene { navbarPosition, sections }
+/**
+ * Crear un borrador de layout (cambios propuestos por el usuario).
+ * 
+ * @name POST /draft
+ * @function
+ * @memberof module:routes/layoutRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/draft", async (req, res) => {
   try {
     // Si tienes autenticación, asegúrate de que req.user esté disponible
@@ -38,7 +55,16 @@ router.post("/draft", async (req, res) => {
   }
 });
 
-// 3. Listar todos los borradores (solo para administradores)
+/**
+ * Listar todos los borradores (solo para administradores).
+ * 
+ * @name GET /drafts
+ * @function
+ * @memberof module:routes/layoutRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/drafts", async (req, res) => {
   try {
     // Verificar que el usuario sea administrador (esto depende de tu sistema de autenticación)
@@ -52,7 +78,16 @@ router.get("/drafts", async (req, res) => {
   }
 });
 
-// 4. Aprobar un borrador: se actualiza el layout publicado y se marca el borrador como "approved"
+/**
+ * Aprobar un borrador: se actualiza el layout publicado y se marca el borrador como "approved".
+ * 
+ * @name PATCH /drafts/:id/approve
+ * @function
+ * @memberof module:routes/layoutRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.patch("/drafts/:id/approve", async (req, res) => {
   try {
     if (!req.user || req.user.role !== "admin") {
@@ -83,7 +118,16 @@ router.patch("/drafts/:id/approve", async (req, res) => {
   }
 });
 
-// 5. Rechazar un borrador: se marca el borrador como "rejected" con un comentario opcional
+/**
+ * Rechazar un borrador: se marca el borrador como "rejected" con un comentario opcional.
+ * 
+ * @name PATCH /drafts/:id/reject
+ * @function
+ * @memberof module:routes/layoutRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.patch("/drafts/:id/reject", async (req, res) => {
   try {
     if (!req.user || req.user.role !== "admin") {

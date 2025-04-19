@@ -32,7 +32,16 @@ const HOSPITAL_API_URL = `http://${serverIp}:8080`;
 console.log(`🔗 API del Hospital detectada en: ${HOSPITAL_API_URL}`);
 console.log(`🔗 API de Aseguradora: ${ASEGURADORA_RECETAS_API_URL}`);
 
-// ✅ Solicitar receta
+/**
+ * Solicitar una receta desde el hospital y validar disponibilidad de medicamentos.
+ * 
+ * @name GET /solicitar/:codigo
+ * @function
+ * @memberof module:routes/recetasRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
   try {
     const { codigo } = req.params;
@@ -139,7 +148,16 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
   }
 });
 
-// ✅ Comprar receta
+/**
+ * Comprar una receta validada, descontar stock y generar factura en PDF.
+ * 
+ * @name POST /comprar
+ * @function
+ * @memberof module:routes/recetasRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/comprar", verifyToken, async (req, res) => {
   try {
     const { codigo } = req.body;

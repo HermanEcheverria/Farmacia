@@ -3,7 +3,16 @@ const router = express.Router();
 const Page = require("../models/Page");
 const { verifyToken, verifyAdmin } = require("../utils/authMiddleware");
 
-
+/**
+ * Obtener todas las páginas para administración (solo Admin).
+ * 
+ * @name GET /admin
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/admin", verifyToken, verifyAdmin, async (req, res) => {
     try {
       const pages = await Page.find().lean();
@@ -14,8 +23,16 @@ router.get("/admin", verifyToken, verifyAdmin, async (req, res) => {
     }
   });
 
-
-// Obtener todas las páginas (por ejemplo, para la navegación)
+/**
+ * Obtener todas las páginas habilitadas (por ejemplo, para navegación).
+ * 
+ * @name GET /
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/", async (req, res) => {
   try {
     // Puedes filtrar por "enabled = true" si solo quieres mostrar las activas
@@ -27,7 +44,16 @@ router.get("/", async (req, res) => {
   }
 });
 
-// Obtener una página por slug
+/**
+ * Obtener una página por slug.
+ * 
+ * @name GET /:slug
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.get("/:slug", async (req, res) => {
   try {
     const page = await Page.findOne({ slug: req.params.slug, enabled: true }).lean();
@@ -41,7 +67,16 @@ router.get("/:slug", async (req, res) => {
   }
 });
 
-// Crear una página (solo Admin)
+/**
+ * Crear una nueva página (solo Admin).
+ * 
+ * @name POST /
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.post("/", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const newPage = new Page(req.body);
@@ -53,7 +88,16 @@ router.post("/", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Actualizar una página por ID (solo Admin)
+/**
+ * Actualizar una página por ID (solo Admin).
+ * 
+ * @name PUT /:id
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     const updated = await Page.findByIdAndUpdate(req.params.id, req.body, { new: true });
@@ -67,7 +111,16 @@ router.put("/:id", verifyToken, verifyAdmin, async (req, res) => {
   }
 });
 
-// Eliminar (o deshabilitar) una página por ID (solo Admin)
+/**
+ * Eliminar (o deshabilitar) una página por ID (solo Admin).
+ * 
+ * @name DELETE /:id
+ * @function
+ * @memberof module:routes/pageRoutes
+ * @param {Object} req - Objeto de solicitud.
+ * @param {Object} res - Objeto de respuesta.
+ * @returns {void}
+ */
 router.delete("/:id", verifyToken, verifyAdmin, async (req, res) => {
   try {
     // Opción 1: Eliminar físicamente la página
@@ -84,6 +137,5 @@ router.delete("/:id", verifyToken, verifyAdmin, async (req, res) => {
     res.status(400).json({ error: "Error al eliminar página" });
   }
 });
-
 
 module.exports = router;
