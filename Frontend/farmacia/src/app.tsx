@@ -18,7 +18,7 @@ const App: Component = (props: { children: Element }) => {
       </nav>
 
       {/* Contenedor de la Aplicación */}
-      <main class="container mx-auto py-6">
+      <main class="container mx-auto py-6 bg-gray-100">
         <Suspense>{props.children}</Suspense>
       </main>
 

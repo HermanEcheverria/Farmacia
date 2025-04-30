@@ -53,6 +53,8 @@ function withAuth(
 
 // 1. Lazy-load de componentes
 const Home                     = lazy(() => import("./pages/home"));
+const subhome                  = lazy(() => import("./pages/subhome"));
+const subhome2                 = lazy(() => import("./pages/subhome2"));
 const Signup                   = lazy(() => import("./pages/signup"));
 const Login                    = lazy(() => import("./pages/login"));
 const PortalAdmin              = lazy(() => import("./pages/PortalAdmin"));
@@ -75,6 +77,8 @@ const Unauthorized             = lazy(() => import("./errors/401"));
 export const routes: RouteDefinition[] = [
   // PÚBLICAS
   { path: "/",                         component: Home },
+  { path: "/subhome",                  component: subhome },
+  { path: "/subhome2",                 component: subhome2 },
   { path: "/signup",                   component: Signup },
   { path: "/login",                    component: Login },
   { path: "/discount",                 component: DiscountPage },

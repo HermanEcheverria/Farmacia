@@ -29,6 +29,16 @@ const Navbar = () => {
               Inicio
             </A>
           </li>
+          <li>
+            <A href="/subhome" class="hover:text-gray-200 transition">
+              Subhome
+            </A>
+          </li>
+          <li>
+            <A href="/subhome2" class="hover:text-gray-200 transition">
+              Subhome2
+            </A>
+          </li>
           <li> 
             <A href="/searchMedicamentos" class="hover:text-gray-200 transition">
               Buscar
