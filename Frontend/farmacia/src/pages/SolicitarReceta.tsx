@@ -7,6 +7,8 @@ export default function SolicitarReceta() {
   const [error, setError] = createSignal("");
   const [mensajeCompra, setMensajeCompra] = createSignal("");
   const [pdfFactura, setPdfFactura] = createSignal("");
+  const [tieneSeguro, setTieneSeguro] = createSignal(false);
+  const [documento, setDocumento] = createSignal("");
 
   const solicitarReceta = async (codigo: string) => {
     setError("");
@@ -20,16 +22,24 @@ export default function SolicitarReceta() {
     }
 
     try {
-      const response = await fetch(`${API_URL}/recetas/solicitar/${codigo}`, {
+      // Construye la URL y añade el numeroAfiliacion si corresponde
+      const url = new URL(`${API_URL}/recetas/solicitar/${codigo}`);
+      if (tieneSeguro()) {
+        if (!documento()) {
+          throw new Error("Debes ingresar tu número de afiliación");
+        }
+        url.searchParams.set("numeroAfiliacion", documento());
+      }
+
+      const response = await fetch(url.toString(), {
         method: "GET",
         headers: {
-          "Authorization": `Bearer ${token}`,
-          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
       });
 
       const data = await response.json();
-      console.log(data); 
+      console.log("📥 Respuesta completa del backend:", data);
       if (!response.ok) throw new Error(data.error || "Error al solicitar la receta");
 
       setReceta(data);
@@ -52,23 +62,22 @@ export default function SolicitarReceta() {
       const response = await fetch(`${API_URL}/recetas/comprar`, {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          codigo: codigoReceta()
-        })
+          codigo: codigoReceta(),
+          tieneSeguro: tieneSeguro(),
+          // si necesitas reenviar el documento al comprar, añádelo aquí
+          ...(tieneSeguro() ? { numeroAfiliacion: documento() } : {}),
+        }),
       });
 
-      const responseText = await response.text();
-      const data = JSON.parse(responseText);
-      console.log(data); 
+      const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Error al procesar la compra");
 
       setMensajeCompra(data.mensaje || "Compra procesada exitosamente");
-      if (data.pdfFactura) {
-        setPdfFactura(data.pdfFactura);
-      }
+      if (data.pdfFactura) setPdfFactura(data.pdfFactura);
     } catch (err: any) {
       setError(err.message);
     }
@@ -92,11 +101,35 @@ export default function SolicitarReceta() {
         <label class="block text-lg font-semibold text-[#026E81] mb-2">Código de Receta</label>
         <input
           type="text"
-          class="border border-[#026E81] p-3 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-[#00ABBD] mb-4"
+          class="border border-[#026E81] p-3 rounded-md w-full mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ABBD]"
           placeholder="Ingrese el código de la receta"
           value={codigoReceta()}
           onInput={(e) => setCodigoReceta(e.currentTarget.value)}
         />
+
+        <label class="block text-lg font-semibold text-[#026E81] mb-2">¿Tiene seguro?</label>
+        <select
+          class="border border-[#026E81] p-3 rounded-md w-full mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ABBD]"
+          value={tieneSeguro() ? "si" : "no"}
+          onChange={(e) => setTieneSeguro(e.currentTarget.value === "si")}
+        >
+          <option value="no">No</option>
+          <option value="si">Sí</option>
+        </select>
+
+        {tieneSeguro() && (
+          <div>
+            <label class="block text-lg font-semibold text-[#026E81] mb-2">Número de afiliación</label>
+            <input
+              type="text"
+              class="border border-[#026E81] p-3 rounded-md w-full mb-4 focus:outline-none focus:ring-2 focus:ring-[#00ABBD]"
+              placeholder="Ingrese su número de afiliación"
+              value={documento()}
+              onInput={(e) => setDocumento(e.currentTarget.value)}
+            />
+          </div>
+        )}
+
         <button
           class="bg-[#0099DD] hover:bg-[#007cb2] text-white px-4 py-2 rounded-md w-full font-semibold transition"
           onClick={() => solicitarReceta(codigoReceta())}
@@ -111,23 +144,28 @@ export default function SolicitarReceta() {
         <div class="bg-white border border-[#A1C7E0] p-6 mt-6 rounded-2xl shadow-md w-full max-w-2xl">
           <h2 class="text-2xl font-bold text-[#024059] mb-4">Detalles de la Receta</h2>
           <p class="text-[#026873]"><strong>Código:</strong> {codigoReceta()}</p>
+          <p class="text-[#026873]"><strong>ID del Paciente:</strong> {receta().idPaciente}</p>
+          <p class="text-[#026873]"><strong>Nombre del Paciente:</strong> {receta().nombrePaciente}</p>
+
           <h3 class="text-xl font-semibold text-[#026E81] mt-4 mb-2">Medicamentos</h3>
           <ul class="list-disc pl-6">
             {receta().medicamentos.map((med: any) => (
               <li class={med.disponible ? "text-green-600" : "text-red-600"}>
-                {med.nombre} - {med.cantidad} unidades
-                {med.disponible ? " ✅ Disponible" : " ❌ No disponible"}
+                {med.nombre} – {med.cantidad} unidades {med.disponible ? "✅" : "❌"}
               </li>
             ))}
           </ul>
 
-          {/* Mostrar detalles del seguro y totales */}
           <div class="mt-4 text-[#024059] space-y-1">
-            <p><strong>Total:</strong> Q{receta().total?.toFixed(2)}</p>
-            <p><strong>Descuento:</strong> Q{receta().descuento?.toFixed(2)} ({receta().infoDescuento})</p>
-            <p><strong>Total Final:</strong> Q{receta().totalFinal?.toFixed(2)}</p>
-            <p><strong>Estado del Seguro:</strong> {receta().estadoSeguro}</p>
-            <p><strong>Motivo:</strong> {receta().mensaje}</p> {/* Agregado */}
+            <p><strong>Total:</strong> Q{receta().total.toFixed(2)}</p>
+            {tieneSeguro() && (
+              <>
+                <p><strong>Descuento:</strong> Q{receta().descuento.toFixed(2)} ({receta().infoDescuento})</p>
+                <p><strong>Total Final:</strong> Q{receta().totalFinal.toFixed(2)}</p>
+                <p><strong>Estado del Seguro:</strong> {receta().estadoSeguro}</p>
+                <p><strong>Motivo:</strong> {receta().mensaje}</p>
+              </>
+            )}
           </div>
 
           {receta().medicamentos.every((m: any) => m.disponible) ? (

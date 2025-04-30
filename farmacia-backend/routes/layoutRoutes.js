@@ -46,7 +46,7 @@ router.post("/draft", async (req, res) => {
     const draft = new LayoutDraft({
       navbarPosition: req.body.navbarPosition,
       sections: req.body.sections,
-      createdBy: req.user ? req.user._id : null
+      createdBy: req.user ? req.user.id : null
     });
     await draft.save();
     res.status(201).json(draft);

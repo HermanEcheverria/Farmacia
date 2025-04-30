@@ -34,8 +34,7 @@ app.use(express.urlencoded({ extended: true }));
  * Conexión a la base de datos MongoDB.
  */
 mongoose.connect(process.env.MONGO_URI || "mongodb://CruzVerde:Unis@137.184.71.127:27018/farmacia?authSource=admin", {
-  useNewUrlParser: true,
-  useUnifiedTopology: true
+  useNewUrlParser: true
 }).then(() => console.log("✅ Conectado a MongoDB"))
   .catch(err => console.error("❌ Error conectando a MongoDB:", err));
 

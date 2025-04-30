@@ -7,11 +7,15 @@ const verifyToken = (req, res, next) => {
     return res.status(401).json({ error: "Acceso no autorizado, token requerido" });
   }
 
+  console.log("Token recibido:", token); // Log para depuración
+
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    console.log("Token decodificado:", decoded); // Log para depuración
     req.user = decoded; 
     next();
   } catch (error) {
+    console.error("Error al verificar el token:", error.message); // Log detallado del error
     return res.status(401).json({ error: "Token inválido" });
   }
 };

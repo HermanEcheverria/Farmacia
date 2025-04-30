@@ -1,326 +1,283 @@
-const os = require("os");
-const express = require("express");
-const axios = require("axios");
+// farmacia-backend/routes/recetasRoutes.js
+
+const express     = require("express");
+const axios       = require("axios");
 const PDFDocument = require("pdfkit");
-const dotenv = require("dotenv");
+const dotenv      = require("dotenv");
 dotenv.config();
 
 const { verifyToken } = require("../utils/authMiddleware");
-const Medicamento = require("../models/Medicamento");
-const Venta = require("../models/Venta");
+const Medicamento  = require("../models/Medicamento");
+const Venta        = require("../models/Venta");
+const RecetaAseg   = require("../models/Receta"); // Modelo local de Farmacia
 
 const router = express.Router();
 
-// API de aseguradora (forzado IPv4)
-const ASEGURADORA_RECETAS_API_URL =
-  process.env.ASEGURADORA_API_URL_recetas?.replace("localhost", "127.0.0.1") ||
-  "http://127.0.0.1:5001/api/recetas";
-
-// IP del hospital
-const networkInterfaces = os.networkInterfaces();
-let serverIp = "localhost";
-for (const interfaceName in networkInterfaces) {
-  for (const iface of networkInterfaces[interfaceName]) {
-    if (!iface.internal && iface.family === "IPv4") {
-      serverIp = iface.address;
-      break;
-    }
-  }
-}
-const HOSPITAL_API_URL = `http://${serverIp}:8080`;
-
-console.log(`🔗 API del Hospital detectada en: ${HOSPITAL_API_URL}`);
-console.log(`🔗 API de Aseguradora: ${ASEGURADORA_RECETAS_API_URL}`);
+const HOSPITAL_API_URL    = process.env.HOSPITAL_API_URL    || "http://localhost:8080";
+const ASEGURADORA_API_URL = (process.env.ASEGURADORA_API_URL_RECETAS
+                              || "http://localhost:5001/api/recetas"
+                            ).replace(/\/+$/,"");
 
 /**
- * Solicitar una receta desde el hospital y validar disponibilidad de medicamentos.
- * 
- * @name GET /solicitar/:codigo
- * @function
- * @memberof module:routes/recetasRoutes
- * @param {Object} req - Objeto de solicitud.
- * @param {Object} res - Objeto de respuesta.
- * @returns {void}
+ * GET /solicitar/:codigo
  */
 router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
   try {
     const { codigo } = req.params;
-    const token = req.headers.authorization;
+    const token      = req.headers.authorization;
+    const numeroAfiliacion = req.query.numeroAfiliacion; // opcional
 
-    const response = await axios.get(`${HOSPITAL_API_URL}/recetas/${codigo}`, {
-      headers: { Authorization: token },
-    });
+    // 1) Traer receta del Hospital
+    const { data: receta } = await axios.get(
+      `${HOSPITAL_API_URL}/recetas/${codigo}`,
+      { headers: { Authorization: token } }
+    );
+    if (!receta) return res.status(404).json({ error: "Receta no encontrada" });
 
-    if (!response.data) return res.status(404).json({ error: "Receta no encontrada" });
+    // 2) Verificar stock y buscar alternativos
+    const meds = [];
+    let completa = true;
+    for (const item of receta.medicamentos) {
+      const m    = item.medicamento || {};
+      const id   = m.idMedicamento;
+      const cant = parseInt(item.dosis, 10) || 1;
+      const doc  = await Medicamento.findOne({ idMedicamento: id });
+      const un   = doc?.unidadesPorPresentacion || m.unidadesPorPresentacion || 1;
 
-    const receta = response.data;
-    const medicamentosDisponibles = [];
-    let recetaCompleta = true;
-
-    for (let item of receta.medicamentos) {
-      const medData = item.medicamento || {};
-      const id = medData.idMedicamento;
-      const principio = medData.principioActivo || "Desconocido";
-      const concentracion = medData.concentracion || "N/A";
-      const cantidad = parseInt(item.dosis) || 1;
-
-      let medicamento = await Medicamento.findOne({ idMedicamento: id });
-      let unidades = medicamento?.unidadesPorPresentacion || medData.unidadesPorPresentacion || 1;
-
-      if (medicamento && medicamento.stock >= cantidad) {
-        medicamentosDisponibles.push({
+      if (doc && doc.stock >= cant) {
+        meds.push({
           idMedicamento: id,
-          nombre: principio,
-          concentracion,
-          presentacion: medicamento.presentacion,
-          unidadesPorPresentacion: unidades,
-          cantidad,
-          disponible: true,
-          precio_unitario: medicamento.precio
+          nombre:        m.principioActivo,
+          cantidad:      cant,
+          disponible:    true,
+          presentacion:  doc.presentacion,
+          unidadesPorPresentacion: un,
+          precio_unitario:         doc.precio
         });
       } else {
-        const alternativo = await Medicamento.findOne({ principioActivo: principio, stock: { $gte: cantidad } });
-        if (alternativo) {
-          medicamentosDisponibles.push({
-            idMedicamento: alternativo.idMedicamento,
-            nombre: alternativo.principioActivo,
-            concentracion: alternativo.concentracion,
-            presentacion: alternativo.presentacion,
-            unidadesPorPresentacion: alternativo.unidadesPorPresentacion,
-            cantidad,
-            disponible: true,
-            precio_unitario: alternativo.precio
+        const alt = await Medicamento.findOne({
+          principioActivo: m.principioActivo,
+          stock: { $gte: cant }
+        });
+        if (alt) {
+          meds.push({
+            idMedicamento: alt.idMedicamento,
+            nombre:        alt.principioActivo,
+            cantidad:      cant,
+            disponible:    true,
+            presentacion:  alt.presentacion,
+            unidadesPorPresentacion: alt.unidadesPorPresentacion,
+            precio_unitario:         alt.precio
           });
         } else {
-          recetaCompleta = false;
-          medicamentosDisponibles.push({
+          completa = false;
+          meds.push({
             idMedicamento: id,
-            nombre: principio,
-            concentracion,
-            presentacion: medData.presentacion || "N/A",
-            unidadesPorPresentacion: unidades,
-            cantidad,
-            disponible: false,
-            precio_unitario: medicamento?.precio || 0
+            nombre:        m.principioActivo,
+            cantidad:      cant,
+            disponible:    false,
+            presentacion:  m.presentacion || "N/A",
+            unidadesPorPresentacion: un,
+            precio_unitario:         doc?.precio || 0
           });
         }
       }
     }
-
-    if (!recetaCompleta) {
-      return res.status(400).json({
-        error: "No se puede completar la receta por falta de medicamentos",
-        medicamentos: medicamentosDisponibles,
-      });
+    if (!completa) {
+      return res.status(400).json({ error: "Faltan medicamentos", medicamentos: meds });
     }
 
-    const montoCalculado = medicamentosDisponibles.reduce((acc, m) => acc + m.cantidad * (m.precio_unitario || 0), 0);
+    // 3) Calcular total
+    const total = meds.reduce((s, m) => s + m.cantidad * (m.precio_unitario || 0), 0);
 
-    let validacionSeguro = null;
+    // 4) Registrar en Aseguradora (POST /api/recetas)
     try {
-      const seguroRes = await axios.post(`${ASEGURADORA_RECETAS_API_URL}/validar`, {
-        idReceta: codigo,
-        farmacia: "Farmacia XYZ",
-        monto: montoCalculado
-      });
-      
-      validacionSeguro = seguroRes.data;
+      await axios.post(
+        `${ASEGURADORA_API_URL}`,
+        {
+          codigo,
+          cliente: receta.idPaciente,
+          farmacia: "Farmacia Verde",
+          total
+        },
+        { headers: { Authorization: token, "Content-Type": "application/json" } }
+      );
     } catch (err) {
-      console.warn("⚠️ No se pudo validar con la aseguradora:", err.message);
+      // ignorar 409 Conflict si ya existe
+      if (err.response?.status !== 409) throw err;
     }
 
-    const descuento = validacionSeguro?.descuento || 0;
-    const totalFinal = montoCalculado - descuento;
+    // 5) Validar en Aseguradora (POST /api/recetas/validar)
+    const validarPayload = {
+      codigo,
+      farmacia: "Farmacia Verde",
+      total,
+      ...(numeroAfiliacion ? { numeroAfiliacion } : {})
+    };
+    const { data: seguro } = await axios.post(
+      `${ASEGURADORA_API_URL}/validar`,
+      validarPayload,
+      { headers: { Authorization: token, "Content-Type": "application/json" } }
+    );
+    const { estado, descuento = 0, mensaje, infoDescuento } = seguro;
+    const totalFinal = total - descuento;
 
-    return res.json({
-      mensaje: validacionSeguro?.mensaje || "Receta disponible",
-      medicamentos: medicamentosDisponibles,
-      total: montoCalculado,
+    // 6) Guardar en BD de Farmacia
+    await RecetaAseg.create({
+      codigo,
+      paciente:      receta.nombrePaciente,
+      medicamentos:  meds.map(m => ({
+        codigo:          String(m.idMedicamento),
+        nombre:          m.nombre,
+        principioActivo: m.nombre,
+        cantidad:        m.cantidad,
+        dosis:           String(m.cantidad),
+        frecuencia:      "N/A",      // <-- Ya no está vacío
+        duracionDias:    0
+      })),
+      fechaEmision:  new Date(),
+      total,
       descuento,
       totalFinal,
-      estadoSeguro: validacionSeguro?.estado || "sin respuesta",
-      infoDescuento: validacionSeguro?.infoDescuento || "No se aplicó descuento"
+      estadoSeguro:  estado
     });
 
-  } catch (error) {
-    console.error("❌ Error al solicitar receta:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ error: error.response?.data || "Error interno del servidor" });
+    // 7) Devolver al frontend
+    return res.json({
+      codigo,
+      idPaciente:    receta.idPaciente,
+      nombrePaciente: receta.nombrePaciente,
+      medicamentos:  meds,
+      total,
+      descuento,
+      totalFinal,
+      estadoSeguro:  estado,
+      mensaje,
+      infoDescuento
+    });
+
+  } catch (err) {
+    console.error("Error al solicitar receta:", err);
+    return res.status(500).json({ error: "Error interno del servidor" });
   }
 });
 
 /**
- * Comprar una receta validada, descontar stock y generar factura en PDF.
- * 
- * @name POST /comprar
- * @function
- * @memberof module:routes/recetasRoutes
- * @param {Object} req - Objeto de solicitud.
- * @param {Object} res - Objeto de respuesta.
- * @returns {void}
+ * POST /comprar
+ * — Procesa compra, actualiza stock, guarda Venta y genera PDF
  */
 router.post("/comprar", verifyToken, async (req, res) => {
   try {
-    const { codigo } = req.body;
+    const { codigo, tieneSeguro, numeroAfiliacion } = req.body;
     const token = req.headers.authorization;
 
-    const response = await axios.get(`${HOSPITAL_API_URL}/recetas/${codigo}`, {
-      headers: { Authorization: token }
-    });
+    // 1) Traer receta del Hospital
+    const { data: receta } = await axios.get(
+      `${HOSPITAL_API_URL}/recetas/${codigo}`,
+      { headers: { Authorization: token } }
+    );
+    if (!receta) return res.status(404).json({ error: "Receta no encontrada" });
 
-    if (!response.data) return res.status(404).json({ error: "Receta no encontrada" });
-
-    const receta = response.data;
-    const medicamentosParaVenta = [];
-    let recetaCompleta = true;
-
-    for (let item of receta.medicamentos) {
-      const med = item.medicamento || {};
-      const id = med.idMedicamento;
-      const principio = med.principioActivo || "Desconocido";
-      const concentracion = med.concentracion || "N/A";
-      const dosis = parseFloat(item.dosis) || 1;
-      const frecuencia = parseInt(item.frecuencia) || 1;
-      const duracion = parseInt(item.duracion) || 1;
-      const dias = duracion * 30;
-      const cantidadReq = Math.ceil(dosis * frecuencia * dias);
-
-      let medicamento = await Medicamento.findOne({ idMedicamento: id });
-      let unidades = medicamento ? medicamento.unidadesPorPresentacion : (parseInt(med.unidadesPorPresentacion) || 1);
-      const cajas = Math.ceil(cantidadReq / unidades);
-      const cantidadFinal = cajas * unidades;
-
-      if (medicamento && medicamento.stock >= cantidadFinal) {
-        medicamentosParaVenta.push({
-          idMedicamento: id,
-          nombre: principio,
-          concentracion,
-          presentacion: medicamento.presentacion,
-          unidadesPorPresentacion: unidades,
-          cantidadAVender: cantidadFinal,
-          precioUnitario: medicamento.precio,
-          medicamentoDoc: medicamento,
-        });
+    // 2) Verificar stock y alternativos (igual que en /solicitar)…
+    const medsVenta = [];
+    for (const item of receta.medicamentos) {
+      const m    = item.medicamento || {};
+      const id   = m.idMedicamento;
+      const cant = parseFloat(item.dosis) || 1;
+      const doc  = await Medicamento.findOne({ idMedicamento: id });
+      if (doc && doc.stock >= cant) {
+        medsVenta.push({ medicamentoDoc: doc, cantidadAVender: cant, precioUnitario: doc.precio, nombre: m.principioActivo, idMedicamento: id });
       } else {
-        const alternativo = await Medicamento.findOne({ principioActivo: principio, stock: { $gte: cantidadFinal } });
-        if (alternativo) {
-          medicamentosParaVenta.push({
-            idMedicamento: alternativo.idMedicamento,
-            nombre: alternativo.principioActivo,
-            concentracion: alternativo.concentracion,
-            presentacion: alternativo.presentacion,
-            unidadesPorPresentacion: alternativo.unidadesPorPresentacion,
-            cantidadAVender: cantidadFinal,
-            precioUnitario: alternativo.precio,
-            medicamentoDoc: alternativo,
-          });
+        const alt = await Medicamento.findOne({ principioActivo: m.principioActivo, stock: { $gte: cant } });
+        if (alt) {
+          medsVenta.push({ medicamentoDoc: alt, cantidadAVender: cant, precioUnitario: alt.precio, nombre: alt.principioActivo, idMedicamento: alt.idMedicamento });
         } else {
-          recetaCompleta = false;
-          break;
+          return res.status(400).json({ error: "Faltan medicamentos", medicamentos: medsVenta });
         }
       }
     }
 
-    if (!recetaCompleta) {
-      return res.status(400).json({
-        error: "No se puede completar la receta por falta de medicamentos",
-        medicamentos: medicamentosParaVenta,
-      });
-    }
+    // 3) Calcular total bruto
+    const totalBruto = medsVenta.reduce((s, m) => s + m.cantidadAVender * m.precioUnitario, 0);
 
-    let total = medicamentosParaVenta.reduce((sum, m) => sum + m.cantidadAVender * m.precioUnitario, 0);
+    // 4) Si tiene seguro, volver a validar en Aseguradora para obtener descuento
     let descuento = 0;
-
-    try {
-      const seguroRes = await axios.post(`${ASEGURADORA_RECETAS_API_URL}/validar`, {
-        idReceta: codigo,
-        farmacia: "Farmacia XYZ",
-        monto: total
-      });
-      
-
-      const validacion = seguroRes.data;
-      if (validacion.estado === "aprobada") {
-        descuento = validacion.descuento || 0;
-      } else {
-        return res.status(400).json({ error: validacion.mensaje || "No aprobado por seguro" });
-      }
-    } catch (error) {
-      console.error("❌ Error aseguradora:", error.message);
-      return res.status(500).json({ error: "No se pudo validar con la aseguradora" });
+    if (tieneSeguro) {
+      const payload = {
+        codigo,
+        farmacia: "Farmacia Verde",
+        total: totalBruto,
+        ...(numeroAfiliacion ? { numeroAfiliacion } : {})
+      };
+      const { data: seguro } = await axios.post(
+        `${ASEGURADORA_API_URL}/validar`,
+        payload,
+        { headers: { Authorization: token, "Content-Type": "application/json" } }
+      );
+      descuento = seguro.descuento || 0;
     }
 
-    const totalFinal = total - descuento;
+    const totalFinal = totalBruto - descuento;
 
-    for (let item of medicamentosParaVenta) {
+    // 5) Actualizar stock
+    for (const i of medsVenta) {
       await Medicamento.updateOne(
-        { idMedicamento: item.idMedicamento },
-        { $inc: { stock: -item.cantidadAVender } }
+        { idMedicamento: i.idMedicamento },
+        { $inc: { stock: -i.cantidadAVender } }
       );
     }
 
+    // 6) Guardar Venta
     const venta = new Venta({
-      medicamentos: medicamentosParaVenta.map(item => ({
-        medicamentoId: item.medicamentoDoc._id,
-        cantidad: item.cantidadAVender,
-        precioUnitario: item.precioUnitario
+      medicamentos: medsVenta.map(i => ({
+        medicamentoId: i.medicamentoDoc._id,
+        cantidad:      i.cantidadAVender,
+        precioUnitario: i.precioUnitario
       })),
-      montoTotal: total,
-      usuario: req.user._id
+      montoTotal: totalFinal,
+      usuario:    req.user._id
     });
     await venta.save();
 
+    // 7) Generar PDF con descuento incluido
     const doc = new PDFDocument({ size: "A4", margin: 50 });
-    let buffers = [];
-
+    const buffers = [];
     doc.on("data", buffers.push.bind(buffers));
     doc.on("end", () => {
-      const pdfData = Buffer.concat(buffers).toString("base64");
-      return res.json({
-        mensaje: "Compra procesada exitosamente",
-        total,
+      res.json({
+        mensaje:    "Compra procesada exitosamente",
+        total:      totalBruto,
         descuento,
         totalFinal,
-        pdfFactura: pdfData,
+        pdfFactura: Buffer.concat(buffers).toString("base64")
       });
     });
 
     doc.fontSize(18).text("Factura de Compra", { align: "center" }).moveDown();
-    doc.strokeColor("#aaa").lineWidth(1).moveTo(doc.x, doc.y).lineTo(doc.page.width - doc.options.margin, doc.y).stroke();
-    doc.moveDown(0.5);
-    doc.fontSize(12).text(`Código de Receta: ${codigo}`, { align: "left" }).text(`Fecha: ${new Date().toLocaleString()}`).moveDown();
-    doc.fontSize(14).text("Detalle de Medicamentos:", { underline: true }).moveDown(0.5);
-    doc.fontSize(12);
-    const tableTop = doc.y;
-    doc.text("Medicamento", 50, tableTop);
-    doc.text("Cantidad", 250, tableTop);
-    doc.text("Precio Unit.", 350, tableTop);
-    doc.text("Subtotal", 450, tableTop);
-    doc.moveDown(0.5);
-    doc.strokeColor("#ccc").lineWidth(1).moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
+    doc.fontSize(12)
+       .text(`Código Receta: ${codigo}`)
+       .text(`Fecha: ${new Date().toLocaleString()}`)
+       .moveDown();
 
-    medicamentosParaVenta.forEach((item) => {
-      const y = doc.y + 5;
-      const subtotal = item.cantidadAVender * item.precioUnitario;
-      doc.text(item.nombre, 50, y);
-      doc.text(item.cantidadAVender.toString(), 250, y);
-      doc.text(`$${item.precioUnitario}`, 350, y);
-      doc.text(`$${subtotal}`, 450, y);
-      doc.moveDown();
+    medsVenta.forEach(i => {
+      const sub = i.cantidadAVender * i.precioUnitario;
+      doc.text(
+        `${i.nombre} — Cant: ${i.cantidadAVender}, Unit: $${i.precioUnitario.toFixed(2)}, Sub: $${sub.toFixed(2)}`
+      ).moveDown(0.5);
     });
 
-    doc.moveDown(0.5).strokeColor("#ccc").lineWidth(1).moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
-    doc.moveDown(1);
-    doc.fontSize(12);
-    doc.text(`Total: $${total}`);
-    doc.text(`Descuento: $${descuento}`);
-    doc.text(`Total Final: $${totalFinal}`, { underline: true });
+    doc.moveDown()
+       .text(`Total: $${totalBruto.toFixed(2)}`)
+       .text(`Descuento: $${descuento.toFixed(2)}`)
+       .text(`Total Final: $${totalFinal.toFixed(2)}`, { underline: true });
 
     doc.end();
 
-  } catch (error) {
-    console.error("❌ Error en compra:", error.response?.data || error.message);
-    res.status(error.response?.status || 500).json({ error: error.response?.data || "Error interno en el proceso de compra" });
+  } catch (err) {
+    console.error("❌ Error en compra:", err);
+    res.status(err.response?.status || 500).json({ error: "Error interno en la compra" });
   }
 });
+
 
 module.exports = router;
