@@ -36,7 +36,7 @@ export default function ModeracionAdminView() {
       body: JSON.stringify({ comentarioRechazo: comentario() }),
     });
 
-    const link = `http://192.168.1.8:3000/moderacion/draft/${id}`;
+    const link = `${window.location.origin}/moderacion/draft/${id}`;
     await sendModeracionRechazoEmail(email, comentario(), link, slug);
 
     setComentario("");
