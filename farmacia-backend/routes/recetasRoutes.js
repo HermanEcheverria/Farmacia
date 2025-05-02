@@ -9,32 +9,85 @@ dotenv.config();
 const { verifyToken } = require("../utils/authMiddleware");
 const Medicamento  = require("../models/Medicamento");
 const Venta        = require("../models/Venta");
-const RecetaAseg   = require("../models/Receta"); // Modelo local de Farmacia
+const RecetaAseg   = require("../models/Receta");
 
 const router = express.Router();
 
-const HOSPITAL_API_URL    = process.env.HOSPITAL_API_URL    || "http://localhost:8080";
-const ASEGURADORA_API_URL = (process.env.ASEGURADORA_API_URL_RECETAS
-                              || "http://localhost:5001/api/recetas"
-                            ).replace(/\/+$/,"");
+/**
+ * Descubrimiento dinámico de endpoints desde el .env
+ */
+const hospitalUrls = Object
+  .entries(process.env)
+  .filter(([k]) => k.startsWith("HOSPITAL") && k.endsWith("_API_URL"))
+  .map(([, url]) => url.replace(/\/+$/, ""));
+
+const aseguradoraUrls = Object
+  .entries(process.env)
+  .filter(([k]) => k.startsWith("ASEGURADORA") && k.endsWith("_API_URL_RECETAS"))
+  .map(([, url]) => url.replace(/\/+$/, ""));
+
+/**
+ * Helper: GET /recetas/:codigo en cada hospital hasta que uno responda
+ */
+async function fetchReceta(codigo, token) {
+  let lastErr;
+  for (const base of hospitalUrls) {
+    try {
+      const { data } = await axios.get(
+        `${base}/recetas/${codigo}`,
+        { headers: { Authorization: token } }
+      );
+      return data;
+    } catch (err) {
+      lastErr = err;
+      // si es conexión rechazada, seguir intentando en otro hospital
+      if (err.code === "ECONNREFUSED") continue;
+      // si responde 404, dejamos de buscar y devolvemos not found
+      if (err.response?.status === 404) throw err;
+    }
+  }
+  throw lastErr || new Error("Ningún hospital respondió");
+}
+
+/**
+ * Helper: POST a /api/recetas y /api/recetas/validar en cada aseguradora
+ */
+async function postAseguradora(path, payload, token) {
+  let lastErr;
+  for (const base of aseguradoraUrls) {
+    try {
+      return await axios.post(
+        `${base}${path}`,
+        payload,
+        { headers: { Authorization: token, "Content-Type": "application/json" } }
+      );
+    } catch (err) {
+      lastErr = err;
+      // conexión rechazada → probar siguiente aseguradora
+      if (err.code === "ECONNREFUSED") continue;
+      // conflicto 409 lo dejamos subir para que lo maneje el llamador
+      if (err.response?.status === 409) throw err;
+      // otros errores HTTP (4xx,5xx) abortan
+      if (err.response) throw err;
+    }
+  }
+  throw lastErr || new Error("Ninguna aseguradora respondió");
+}
 
 /**
  * GET /solicitar/:codigo
  */
 router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
   try {
-    const { codigo } = req.params;
-    const token      = req.headers.authorization;
+    const { codigo }       = req.params;
+    const token            = req.headers.authorization;
     const numeroAfiliacion = req.query.numeroAfiliacion; // opcional
 
-    // 1) Traer receta del Hospital
-    const { data: receta } = await axios.get(
-      `${HOSPITAL_API_URL}/recetas/${codigo}`,
-      { headers: { Authorization: token } }
-    );
+    // 1) Traer receta de cualquier hospital
+    const receta = await fetchReceta(codigo, token);
     if (!receta) return res.status(404).json({ error: "Receta no encontrada" });
 
-    // 2) Verificar stock y buscar alternativos
+    // 2) Verificar stock y alternativas
     const meds = [];
     let completa = true;
     for (const item of receta.medicamentos) {
@@ -90,68 +143,66 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
     // 3) Calcular total
     const total = meds.reduce((s, m) => s + m.cantidad * (m.precio_unitario || 0), 0);
 
-    // 4) Registrar en Aseguradora (POST /api/recetas)
+    // 4) Registrar en aseguradora (ignorar conflicto y continúe si alguna falla)
     try {
-      await axios.post(
-        `${ASEGURADORA_API_URL}`,
-        {
-          codigo,
-          cliente: receta.idPaciente,
-          farmacia: "Farmacia Verde",
-          total
-        },
-        { headers: { Authorization: token, "Content-Type": "application/json" } }
+      await postAseguradora(
+        "",
+        { codigo, cliente: receta.idPaciente, farmacia: "Farmacia Verde", total },
+        token
       );
     } catch (err) {
-      // ignorar 409 Conflict si ya existe
-      if (err.response?.status !== 409) throw err;
+      if (err.response?.status !== 409) console.warn("Registro receta falló:", err.message);
     }
 
-    // 5) Validar en Aseguradora (POST /api/recetas/validar)
-    const validarPayload = {
-      codigo,
-      farmacia: "Farmacia Verde",
-      total,
-      ...(numeroAfiliacion ? { numeroAfiliacion } : {})
-    };
-    const { data: seguro } = await axios.post(
-      `${ASEGURADORA_API_URL}/validar`,
-      validarPayload,
-      { headers: { Authorization: token, "Content-Type": "application/json" } }
-    );
-    const { estado, descuento = 0, mensaje, infoDescuento } = seguro;
+    // 5) Validar en aseguradora
+    let validarPayload = { codigo, farmacia: "Farmacia Verde", total };
+    if (numeroAfiliacion) validarPayload.numeroAfiliacion = numeroAfiliacion;
+
+    let seguroResp;
+    try {
+      seguroResp = await postAseguradora("/validar", validarPayload, token);
+    } catch (err) {
+      console.error("Validación en aseguradora falló:", err.message);
+      return res.status(502).json({ error: "No se pudo validar con ninguna aseguradora" });
+    }
+
+    const { estado, descuento = 0, mensaje, infoDescuento } = seguroResp.data;
     const totalFinal = total - descuento;
 
-    // 6) Guardar en BD de Farmacia
-    await RecetaAseg.create({
-      codigo,
-      paciente:      receta.nombrePaciente,
-      medicamentos:  meds.map(m => ({
-        codigo:          String(m.idMedicamento),
-        nombre:          m.nombre,
-        principioActivo: m.nombre,
-        cantidad:        m.cantidad,
-        dosis:           String(m.cantidad),
-        frecuencia:      "N/A",      // <-- Ya no está vacío
-        duracionDias:    0
-      })),
-      fechaEmision:  new Date(),
-      total,
-      descuento,
-      totalFinal,
-      estadoSeguro:  estado
-    });
+    // 6) Upsert en nuestra BD de farmacia
+    await RecetaAseg.findOneAndUpdate(
+      { codigo },
+      {
+        codigo,
+        paciente: receta.nombrePaciente,
+        medicamentos: meds.map(m => ({
+          codigo:          String(m.idMedicamento),
+          nombre:          m.nombre,
+          principioActivo: m.nombre,
+          cantidad:        m.cantidad,
+          dosis:           String(m.cantidad),
+          frecuencia:      "N/A",
+          duracionDias:    0
+        })),
+        fechaEmision: new Date(),
+        total,
+        descuento,
+        totalFinal,
+        estadoSeguro: estado
+      },
+      { upsert: true, new: true }
+    );
 
     // 7) Devolver al frontend
     return res.json({
       codigo,
-      idPaciente:    receta.idPaciente,
+      idPaciente:     receta.idPaciente,
       nombrePaciente: receta.nombrePaciente,
-      medicamentos:  meds,
+      medicamentos:   meds,
       total,
       descuento,
       totalFinal,
-      estadoSeguro:  estado,
+      estadoSeguro:   estado,
       mensaje,
       infoDescuento
     });
@@ -164,21 +215,17 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
 
 /**
  * POST /comprar
- * — Procesa compra, actualiza stock, guarda Venta y genera PDF
  */
 router.post("/comprar", verifyToken, async (req, res) => {
   try {
     const { codigo, tieneSeguro, numeroAfiliacion } = req.body;
     const token = req.headers.authorization;
 
-    // 1) Traer receta del Hospital
-    const { data: receta } = await axios.get(
-      `${HOSPITAL_API_URL}/recetas/${codigo}`,
-      { headers: { Authorization: token } }
-    );
+    // 1) Obtener receta
+    const receta = await fetchReceta(codigo, token);
     if (!receta) return res.status(404).json({ error: "Receta no encontrada" });
 
-    // 2) Verificar stock y alternativos (igual que en /solicitar)…
+    // 2) Preparar items de venta
     const medsVenta = [];
     for (const item of receta.medicamentos) {
       const m    = item.medicamento || {};
@@ -200,34 +247,27 @@ router.post("/comprar", verifyToken, async (req, res) => {
     // 3) Calcular total bruto
     const totalBruto = medsVenta.reduce((s, m) => s + m.cantidadAVender * m.precioUnitario, 0);
 
-    // 4) Si tiene seguro, volver a validar en Aseguradora para obtener descuento
+    // 4) Validar descuento
     let descuento = 0;
     if (tieneSeguro) {
-      const payload = {
-        codigo,
-        farmacia: "Farmacia Verde",
-        total: totalBruto,
-        ...(numeroAfiliacion ? { numeroAfiliacion } : {})
-      };
-      const { data: seguro } = await axios.post(
-        `${ASEGURADORA_API_URL}/validar`,
-        payload,
-        { headers: { Authorization: token, "Content-Type": "application/json" } }
-      );
-      descuento = seguro.descuento || 0;
+      const payload = { codigo, farmacia: "Farmacia Verde", total: totalBruto };
+      if (numeroAfiliacion) payload.numeroAfiliacion = numeroAfiliacion;
+      try {
+        const secRes = await postAseguradora("/validar", payload, token);
+        descuento = secRes.data.descuento || 0;
+      } catch (err) {
+        console.error("Validación en compra falló:", err.message);
+      }
     }
-
     const totalFinal = totalBruto - descuento;
 
-    // 5) Actualizar stock
+    // 5) Actualizar stock y guardar venta
     for (const i of medsVenta) {
       await Medicamento.updateOne(
         { idMedicamento: i.idMedicamento },
         { $inc: { stock: -i.cantidadAVender } }
       );
     }
-
-    // 6) Guardar Venta
     const venta = new Venta({
       medicamentos: medsVenta.map(i => ({
         medicamentoId: i.medicamentoDoc._id,
@@ -239,7 +279,7 @@ router.post("/comprar", verifyToken, async (req, res) => {
     });
     await venta.save();
 
-    // 7) Generar PDF con descuento incluido
+    // 6) Generar PDF
     const doc = new PDFDocument({ size: "A4", margin: 50 });
     const buffers = [];
     doc.on("data", buffers.push.bind(buffers));
@@ -270,7 +310,6 @@ router.post("/comprar", verifyToken, async (req, res) => {
        .text(`Total: $${totalBruto.toFixed(2)}`)
        .text(`Descuento: $${descuento.toFixed(2)}`)
        .text(`Total Final: $${totalFinal.toFixed(2)}`, { underline: true });
-
     doc.end();
 
   } catch (err) {
@@ -278,6 +317,5 @@ router.post("/comprar", verifyToken, async (req, res) => {
     res.status(err.response?.status || 500).json({ error: "Error interno en la compra" });
   }
 });
-
 
 module.exports = router;

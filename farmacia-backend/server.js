@@ -8,6 +8,7 @@ const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 const mongoose = require("mongoose");
+const os       = require("os");
 
 const authRoutes = require("./routes/authRoutes");
 const medicamentoRoutes = require("./routes/medicamentoRoutes");
@@ -22,6 +23,16 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+/**
+ * CORS dinámico: acepta cualquier origen que llame al servidor
+ */
+app.use(cors({
+  origin: true,               // refleja y permite el Origin de la petición
+  methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+  allowedHeaders: ["Content-Type","Authorization"],
+  credentials: true           // si quisieras usar cookies/sesiones
+}));
 
 /**
  * Middleware para habilitar CORS y parsear JSON/URL-encoded.
@@ -50,17 +61,28 @@ app.use("/farmacia", farmaciaRoutes);
 app.use("/moderacion-pages", moderacionRoutes);
 app.use("/discount", discountRoutes);
 
+
+/**
+ * Función auxiliar para obtener tu IP local
+ */
+function getLocalIpAddress() {
+  const nets = os.networkInterfaces();
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name]) {
+      if (net.family === "IPv4" && !net.internal) {
+        return net.address;
+      }
+    }
+  }
+  return "localhost";
+}
+
 /**
  * Inicia el servidor en el puerto especificado.
  */
-app.listen(PORT, () => {
-  console.log(`🚀 Servidor corriendo en http://localhost:${PORT}`);
-  
-  // Mostrar rutas registradas
-  console.log("🔍 Rutas registradas en Express:");
-  app._router.stack.forEach((r) => {
-    if (r.route && r.route.path) {
-      console.log(`✅ ${r.route.stack[0].method.toUpperCase()} ${r.route.path}`);
-    }
-  });
+app.listen(PORT, "0.0.0.0", () => {
+  console.log(`🚀 Servidor Farmacia corriendo en:`);
+  console.log(`   http://localhost:${PORT}`);
+  console.log(`   http://${getLocalIpAddress()}:${PORT}`);
+
 });

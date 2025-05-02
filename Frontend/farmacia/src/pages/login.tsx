@@ -22,6 +22,7 @@ export default function Login() {
       setError(data.error || "Error al iniciar sesión");
     } else {
       localStorage.setItem("token", data.token);
+      
       navigate("/"); // Redirigir al home después del login
     }
   };

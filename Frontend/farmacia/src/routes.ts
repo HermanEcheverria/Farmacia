@@ -13,8 +13,16 @@ export type UserRole =
 
 // src/routes.ts
 function getCurrentUser(): { role: UserRole } | null {
-  const role = localStorage.getItem("userRole") as UserRole | null;
-  return role ? { role } : null;
+  const token = localStorage.getItem("token");
+  if (!token) return null;
+  try {
+    // el payload JWT va en la segunda parte, base64
+    const [, payloadB64] = token.split(".");
+    const { role } = JSON.parse(atob(payloadB64)) as { role: UserRole };
+    return { role };
+  } catch {
+    return null;
+  }
 }
 
 
