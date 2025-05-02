@@ -10,7 +10,7 @@ const Navbar = () => {
   const { pages } = usePages(); // Obtiene la lista de páginas
 
   return (
-    <nav class="bg-blue-600 text-white shadow-md">
+    <nav class="bg-purple-600 text-white shadow-md">
       <div class="container mx-auto px-6 py-4 flex justify-between items-center">
         <A href="/" class="text-2xl font-bold tracking-wide">
           MediSync
