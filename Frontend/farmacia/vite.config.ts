@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [solidPlugin()],
   server: {
     host: true,
-    port: 3005,
+    port: 4005,
   },
   build: {
     target: "esnext",
