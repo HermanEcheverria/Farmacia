@@ -26,7 +26,7 @@ export default function AdminUsers() {
     } catch (err) {
       console.error("❌ Error en la solicitud:", err);
       setError("Acceso denegado. Solo administradores pueden ver esta página.");
-      setTimeout(() => navigate("/"), 3000);
+      setTimeout(() => navigate("/"), 4001);
     }
   });
 
