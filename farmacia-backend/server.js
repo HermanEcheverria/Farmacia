@@ -18,6 +18,7 @@ const pageRoutes = require("./routes/pageRoutes");
 const farmaciaRoutes = require("./routes/farmaciaRoutes");
 const moderacionRoutes = require("./routes/moderacionRoutes");
 const discountRoutes = require("./routes/discountRoutes");
+const serviciosRoutes = require("./routes/serviciosRoutes");
 
 dotenv.config();
 
@@ -60,6 +61,7 @@ app.use("/pages", pageRoutes);
 app.use("/farmacia", farmaciaRoutes);
 app.use("/moderacion-pages", moderacionRoutes);
 app.use("/discount", discountRoutes);
+app.use("/servicios", serviciosRoutes);
 
 
 /**

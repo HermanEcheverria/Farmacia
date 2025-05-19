@@ -11,26 +11,22 @@ const Medicamento  = require("../models/Medicamento");
 const Venta        = require("../models/Venta");
 const RecetaAseg   = require("../models/Receta");
 
+const { getHospitalUrls, getAseguradoraUrls } = require("../utils/discovery");
 const router = express.Router();
 
-/**
- * Descubrimiento dinámico de endpoints desde el .env
- */
-const hospitalUrls = Object
-  .entries(process.env)
-  .filter(([k]) => k.startsWith("HOSPITAL") && k.endsWith("_API_URL"))
-  .map(([, url]) => url.replace(/\/+$/, ""));
 
-const aseguradoraUrls = Object
-  .entries(process.env)
-  .filter(([k]) => k.startsWith("ASEGURADORA") && k.endsWith("_API_URL_RECETAS"))
-  .map(([, url]) => url.replace(/\/+$/, ""));
+
 
 /**
  * Helper: GET /recetas/:codigo en cada hospital hasta que uno responda
  */
 async function fetchReceta(codigo, token) {
   let lastErr;
+  // ← REEMPLAZA el bucle estático por uno dinámico:
+  const hospitalUrls = await getHospitalUrls();
+  if (hospitalUrls.length === 0) {
+    throw new Error("No hay hospitales registrados");
+  }
   for (const base of hospitalUrls) {
     try {
       const { data } = await axios.get(
@@ -40,9 +36,7 @@ async function fetchReceta(codigo, token) {
       return data;
     } catch (err) {
       lastErr = err;
-      // si es conexión rechazada, seguir intentando en otro hospital
       if (err.code === "ECONNREFUSED") continue;
-      // si responde 404, dejamos de buscar y devolvemos not found
       if (err.response?.status === 404) throw err;
     }
   }
@@ -54,6 +48,11 @@ async function fetchReceta(codigo, token) {
  */
 async function postAseguradora(path, payload, token) {
   let lastErr;
+  const aseguradoraUrls = await getAseguradoraUrls();
+  if (aseguradoraUrls.length === 0) {
+    throw new Error("No hay aseguradoras registradas");
+  }
+
   for (const base of aseguradoraUrls) {
     try {
       return await axios.post(
@@ -63,16 +62,25 @@ async function postAseguradora(path, payload, token) {
       );
     } catch (err) {
       lastErr = err;
-      // conexión rechazada → probar siguiente aseguradora
+
+      // Si no responde (ej: servicio caído), probar siguiente
       if (err.code === "ECONNREFUSED") continue;
-      // conflicto 409 lo dejamos subir para que lo maneje el llamador
+
+      // Si no existe el afiliado en esta aseguradora (404), probar siguiente
+      if (err.response?.status === 404) continue;
+
+      // Si la aseguradora ya validó la receta (409), devolvemos el error de inmediato
       if (err.response?.status === 409) throw err;
-      // otros errores HTTP (4xx,5xx) abortan
+
+      // Cualquier otro error HTTP aborta
       if (err.response) throw err;
     }
   }
+
+  // Ninguna aseguradora pudo procesar
   throw lastErr || new Error("Ninguna aseguradora respondió");
 }
+
 
 /**
  * GET /solicitar/:codigo
@@ -81,9 +89,13 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
   try {
     const { codigo }       = req.params;
     const token            = req.headers.authorization;
-    const numeroAfiliacion = req.query.numeroAfiliacion; // opcional
+    const numeroAfiliacion = req.query.numeroAfiliacion;
+    // CONVERSIÓN CORRECTA a booleano:
+    const tieneSeguro = req.query.tieneSeguro === "true";
 
-    // 1) Traer receta de cualquier hospital
+    console.log("tieneSeguro:", tieneSeguro);
+
+    // 1) Traer receta
     const receta = await fetchReceta(codigo, token);
     if (!receta) return res.status(404).json({ error: "Receta no encontrada" });
 
@@ -98,41 +110,17 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
       const un   = doc?.unidadesPorPresentacion || m.unidadesPorPresentacion || 1;
 
       if (doc && doc.stock >= cant) {
-        meds.push({
-          idMedicamento: id,
-          nombre:        m.principioActivo,
-          cantidad:      cant,
-          disponible:    true,
-          presentacion:  doc.presentacion,
-          unidadesPorPresentacion: un,
-          precio_unitario:         doc.precio
-        });
+        meds.push({ idMedicamento: id, nombre: m.principioActivo, cantidad: cant, disponible: true,
+                    presentacion: doc.presentacion, unidadesPorPresentacion: un, precio_unitario: doc.precio });
       } else {
-        const alt = await Medicamento.findOne({
-          principioActivo: m.principioActivo,
-          stock: { $gte: cant }
-        });
+        const alt = await Medicamento.findOne({ principioActivo: m.principioActivo, stock: { $gte: cant } });
         if (alt) {
-          meds.push({
-            idMedicamento: alt.idMedicamento,
-            nombre:        alt.principioActivo,
-            cantidad:      cant,
-            disponible:    true,
-            presentacion:  alt.presentacion,
-            unidadesPorPresentacion: alt.unidadesPorPresentacion,
-            precio_unitario:         alt.precio
-          });
+          meds.push({ idMedicamento: alt.idMedicamento, nombre: alt.principioActivo, cantidad: cant, disponible: true,
+                      presentacion: alt.presentacion, unidadesPorPresentacion: alt.unidadesPorPresentacion, precio_unitario: alt.precio });
         } else {
           completa = false;
-          meds.push({
-            idMedicamento: id,
-            nombre:        m.principioActivo,
-            cantidad:      cant,
-            disponible:    false,
-            presentacion:  m.presentacion || "N/A",
-            unidadesPorPresentacion: un,
-            precio_unitario:         doc?.precio || 0
-          });
+          meds.push({ idMedicamento: id, nombre: m.principioActivo, cantidad: cant, disponible: false,
+                      presentacion: m.presentacion||"N/A", unidadesPorPresentacion: un, precio_unitario: doc?.precio||0 });
         }
       }
     }
@@ -140,71 +128,69 @@ router.get("/solicitar/:codigo", verifyToken, async (req, res) => {
       return res.status(400).json({ error: "Faltan medicamentos", medicamentos: meds });
     }
 
-    // 3) Calcular total
-    const total = meds.reduce((s, m) => s + m.cantidad * (m.precio_unitario || 0), 0);
+    // 3) Calcular total bruto
+    const total = meds.reduce((s, m) => s + m.cantidad * (m.precio_unitario||0), 0);
 
-    // 4) Registrar en aseguradora (ignorar conflicto y continúe si alguna falla)
-    try {
-      await postAseguradora(
-        "",
-        { codigo, cliente: receta.idPaciente, farmacia: "Farmacia Verde", total },
-        token
-      );
-    } catch (err) {
-      if (err.response?.status !== 409) console.warn("Registro receta falló:", err.message);
+    // 4–5) Registro y validación sólo si realmente tieneSeguro === true
+    let estado = "SIN_SEGURO", descuento = 0, mensaje = null, infoDescuento = null;
+    if (tieneSeguro) {
+      console.log("Entrando al flujo de aseguradora");
+      const urls = await getAseguradoraUrls();
+      if (urls.length) {
+        // registro
+        try {
+          await postAseguradora("/recetas",
+            { codigo, cliente: receta.idPaciente, farmacia: "MiFarmacia", total },
+            token
+          );
+        } catch (err) {
+          if (err.response?.status !== 409) console.warn("Registro receta falló:", err.message);
+        }
+        // validación
+        const payload = { codigo, farmacia: "MiFarmacia", total };
+        if (numeroAfiliacion) payload.numeroAfiliacion = numeroAfiliacion;
+        try {
+          const resp = await postAseguradora("/recetas/validar", payload, token);
+          ({ estado, descuento=0, mensaje, infoDescuento } = resp.data);
+        } catch (err) {
+          console.warn("Validación en aseguradora falló:", err.message);
+        }
+      } else {
+        console.warn("No hay aseguradoras configuradas: omitiendo seguro");
+      }
     }
 
-    // 5) Validar en aseguradora
-    let validarPayload = { codigo, farmacia: "Farmacia Verde", total };
-    if (numeroAfiliacion) validarPayload.numeroAfiliacion = numeroAfiliacion;
-
-    let seguroResp;
-    try {
-      seguroResp = await postAseguradora("/validar", validarPayload, token);
-    } catch (err) {
-      console.error("Validación en aseguradora falló:", err.message);
-      return res.status(502).json({ error: "No se pudo validar con ninguna aseguradora" });
-    }
-
-    const { estado, descuento = 0, mensaje, infoDescuento } = seguroResp.data;
     const totalFinal = total - descuento;
 
-    // 6) Upsert en nuestra BD de farmacia
+    // 6) Guardar/upsert
     await RecetaAseg.findOneAndUpdate(
       { codigo },
       {
         codigo,
         paciente: receta.nombrePaciente,
         medicamentos: meds.map(m => ({
-          codigo:          String(m.idMedicamento),
-          nombre:          m.nombre,
+          codigo: String(m.idMedicamento),
+          nombre: m.nombre,
           principioActivo: m.nombre,
-          cantidad:        m.cantidad,
-          dosis:           String(m.cantidad),
-          frecuencia:      "N/A",
-          duracionDias:    0
+          cantidad: m.cantidad,
+          dosis: String(m.cantidad),
+          frecuencia: "N/A",
+          duracionDias: 0
         })),
         fechaEmision: new Date(),
-        total,
-        descuento,
-        totalFinal,
+        total, descuento, totalFinal,
         estadoSeguro: estado
       },
       { upsert: true, new: true }
     );
 
-    // 7) Devolver al frontend
+    // 7) Responder
     return res.json({
       codigo,
-      idPaciente:     receta.idPaciente,
+      idPaciente: receta.idPaciente,
       nombrePaciente: receta.nombrePaciente,
-      medicamentos:   meds,
-      total,
-      descuento,
-      totalFinal,
-      estadoSeguro:   estado,
-      mensaje,
-      infoDescuento
+      medicamentos: meds,
+      total, descuento, totalFinal, estadoSeguro: estado, mensaje, infoDescuento
     });
 
   } catch (err) {
@@ -233,11 +219,26 @@ router.post("/comprar", verifyToken, async (req, res) => {
       const cant = parseFloat(item.dosis) || 1;
       const doc  = await Medicamento.findOne({ idMedicamento: id });
       if (doc && doc.stock >= cant) {
-        medsVenta.push({ medicamentoDoc: doc, cantidadAVender: cant, precioUnitario: doc.precio, nombre: m.principioActivo, idMedicamento: id });
+        medsVenta.push({
+          medicamentoDoc: doc,
+          cantidadAVender: cant,
+          precioUnitario: doc.precio,
+          nombre: m.principioActivo,
+          idMedicamento: id
+        });
       } else {
-        const alt = await Medicamento.findOne({ principioActivo: m.principioActivo, stock: { $gte: cant } });
+        const alt = await Medicamento.findOne({
+          principioActivo: m.principioActivo,
+          stock: { $gte: cant }
+        });
         if (alt) {
-          medsVenta.push({ medicamentoDoc: alt, cantidadAVender: cant, precioUnitario: alt.precio, nombre: alt.principioActivo, idMedicamento: alt.idMedicamento });
+          medsVenta.push({
+            medicamentoDoc: alt,
+            cantidadAVender: cant,
+            precioUnitario: alt.precio,
+            nombre: alt.principioActivo,
+            idMedicamento: alt.idMedicamento
+          });
         } else {
           return res.status(400).json({ error: "Faltan medicamentos", medicamentos: medsVenta });
         }
@@ -250,15 +251,29 @@ router.post("/comprar", verifyToken, async (req, res) => {
     // 4) Validar descuento
     let descuento = 0;
     if (tieneSeguro) {
-      const payload = { codigo, farmacia: "Farmacia Verde", total: totalBruto };
+      const payload = {
+        codigo,
+        farmacia: "MiFarmacia",   // o usa tu variable de config
+        total: totalBruto
+      };
       if (numeroAfiliacion) payload.numeroAfiliacion = numeroAfiliacion;
+
       try {
-        const secRes = await postAseguradora("/validar", payload, token);
+        const secRes = await postAseguradora(
+          "/recetas/validar",      // ← ruta corregida
+          payload,
+          token
+        );
         descuento = secRes.data.descuento || 0;
       } catch (err) {
-        console.error("Validación en compra falló:", err.message);
+        if (err.response?.status === 404) {
+          console.warn("Afiliado no encontrado en ninguna aseguradora — sin descuento");
+        } else {
+          console.error("Validación en compra falló:", err.message);
+        }
       }
     }
+
     const totalFinal = totalBruto - descuento;
 
     // 5) Actualizar stock y guardar venta
@@ -317,5 +332,6 @@ router.post("/comprar", verifyToken, async (req, res) => {
     res.status(err.response?.status || 500).json({ error: "Error interno en la compra" });
   }
 });
+
 
 module.exports = router;

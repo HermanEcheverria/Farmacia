@@ -80,6 +80,7 @@ const DraftView                = lazy(() => import("./pages/DraftView"));
 const ModeracionAdminView      = lazy(() => import("./pages/ModeracionAdminView"));
 const SolicitudesDescuentoPage = lazy(() => import("./components/SolicitudesDescuentoPage"));
 const Unauthorized             = lazy(() => import("./errors/401"));  
+const ServicioAdmin             = lazy(() => import("./components/ServicioAdmin"));
 
 // 2. Definición de rutas
 export const routes: RouteDefinition[] = [
@@ -138,6 +139,10 @@ export const routes: RouteDefinition[] = [
   {
     path: "/admin/moderacion",
     component: withAuth(ModeracionAdminView, ["admin"])
+  },
+  {
+    path: "/admin/servicios",
+      component: withAuth(ServicioAdmin, ["admin", "interconexiones"])
   },
 
   // RUTAS DE MODERACIÓN DE Borradores

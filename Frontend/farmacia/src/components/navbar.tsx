@@ -1,4 +1,4 @@
-// src/components/navbar.tsx
+// src/components/Navbar.tsx
 import { A } from "@solidjs/router";
 import { usePages } from "../pages/pageStore";
 import { createSignal } from "solid-js";
@@ -7,7 +7,7 @@ import { getUser, logout } from "../utils/auth";
 const Navbar = () => {
   const [isOpen, setIsOpen] = createSignal(false);
   const user = getUser();
-  const { pages } = usePages(); // Obtiene la lista de páginas
+  const { pages } = usePages(); // páginas dinámicas
 
   return (
     <nav class="bg-blue-600 text-white shadow-md">
@@ -35,23 +35,17 @@ const Navbar = () => {
             </A>
           </li>
           <li>
-            <A href="/subhome2" class="hover:text-gray-200 transition">
-              Subhome2
-            </A>
-          </li>
-          <li> 
             <A href="/searchMedicamentos" class="hover:text-gray-200 transition">
               Buscar
             </A>
           </li>
-          {/* Agregar enlace a Descuentos */}
           <li>
             <A href="/discount" class="hover:text-gray-200 transition">
               Descuentos
             </A>
           </li>
 
-          {/* Links dinámicos: por ejemplo, si creas nuevas páginas */}
+          {/* páginas dinámicas */}
           {pages().map((page) => (
             <li>
               <A href={`/${page.slug}`} class="hover:text-gray-200 transition">
@@ -62,6 +56,7 @@ const Navbar = () => {
 
           {user ? (
             <>
+              {/* Link a Admin general (solo admin) */}
               {user.role === "admin" && (
                 <li>
                   <A href="/admin" class="hover:text-gray-200 transition">
@@ -69,11 +64,24 @@ const Navbar = () => {
                   </A>
                 </li>
               )}
+
+              {/* Link a Servicios (admin + interconexiones) */}
+              {(user.role === "admin" || user.role === "interconexiones") && (
+                <li>
+                  <A href="/admin/servicios" class="hover:text-gray-200 transition">
+                    Servicios
+                  </A>
+                </li>
+              )}
+
+              {/* Link a Panel para cualquier usuario autenticado */}
               <li>
                 <A href="/dashboard" class="hover:text-gray-200 transition">
                   Panel
                 </A>
               </li>
+
+              {/* Cerrar sesión */}
               <li>
                 <button
                   class="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-lg transition"

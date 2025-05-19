@@ -24,6 +24,7 @@ export default function SolicitarReceta() {
     try {
       // Construye la URL y añade el numeroAfiliacion si corresponde
       const url = new URL(`${API_URL}/recetas/solicitar/${codigo}`);
+      url.searchParams.set("tieneSeguro", tieneSeguro() ? "true" : "false");
       if (tieneSeguro()) {
         if (!documento()) {
           throw new Error("Debes ingresar tu número de afiliación");
